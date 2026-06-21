@@ -146,6 +146,15 @@ def init_db():
             updated_at TEXT DEFAULT (date('now'))
         );
 
+        CREATE TABLE IF NOT EXISTS tax_rates_master (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tax_name TEXT NOT NULL UNIQUE,
+            rate_percent REAL NOT NULL DEFAULT 0,
+            is_active INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT (date('now')),
+            updated_at TEXT DEFAULT (date('now'))
+        );
+
         CREATE TABLE IF NOT EXISTS cheques (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             cheque_no TEXT NOT NULL,
@@ -916,6 +925,52 @@ def api_pm_master_delete(pid):
     if session.get("role") != "admin":
         return jsonify({"error":"Admin only"}), 403
     execute("DELETE FROM pm_master WHERE id=?", (pid,))
+    return jsonify({"ok": True})
+
+# ── Tax Rates Master API ───────────────────────────────────────────────────────
+@app.route("/api/tax_rates/master")
+@login_required
+def api_tax_rates_master_list():
+    rows = query("SELECT * FROM tax_rates_master ORDER BY tax_name")
+    return jsonify([dict(r) for r in rows])
+
+@app.route("/api/tax_rates/master", methods=["POST"])
+@login_required
+def api_tax_rates_master_create():
+    if session.get("role") != "admin":
+        return jsonify({"error":"Admin only"}), 403
+    d = request.get_json()
+    name = (d.get("tax_name") or "").strip()
+    rate = float(d.get("rate_percent") or 0)
+    if not name:
+        return jsonify({"error": "Tax name is required"}), 400
+    try:
+        tid = execute("INSERT INTO tax_rates_master (tax_name, rate_percent) VALUES (?,?)", (name, rate))
+        return jsonify({"ok": True, "id": tid})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/api/tax_rates/master/<int:tid>", methods=["PUT"])
+@login_required
+def api_tax_rates_master_update(tid):
+    if session.get("role") != "admin":
+        return jsonify({"error":"Admin only"}), 403
+    d = request.get_json()
+    name = (d.get("tax_name") or "").strip()
+    rate = float(d.get("rate_percent") or 0)
+    active = int(d.get("is_active") or 1)
+    if not name:
+        return jsonify({"error": "Tax name is required"}), 400
+    execute("""UPDATE tax_rates_master SET tax_name=?, rate_percent=?, is_active=?, updated_at=date('now')
+               WHERE id=?""", (name, rate, active, tid))
+    return jsonify({"ok": True})
+
+@app.route("/api/tax_rates/master/<int:tid>", methods=["DELETE"])
+@login_required
+def api_tax_rates_master_delete(tid):
+    if session.get("role") != "admin":
+        return jsonify({"error":"Admin only"}), 403
+    execute("DELETE FROM tax_rates_master WHERE id=?", (tid,))
     return jsonify({"ok": True})
 
 @app.route("/api/projects/reassign_pm", methods=["POST"])

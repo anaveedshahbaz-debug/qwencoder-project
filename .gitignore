@@ -2,6 +2,16 @@
 # Database files
 *.db
 
+# Environment files
+.env
+.env.local
+*.env.*
+
+# Dependencies
+.venv/
+venv/
+node_modules/
+
 # Python
 __pycache__/
 *.pyc
@@ -9,14 +19,6 @@ __pycache__/
 *.pyd
 .Python
 env/
-venv/
-.venv/
-.ENV
-.ENV.local
-.env
-.env.local
-.env.*
-.python-version
 pip-log.txt
 pip-delete-this-directory.txt
 .tox/
@@ -27,60 +29,20 @@ nosetests.xml
 coverage.xml
 *.cover
 *.log
-.git/refs/original/
-hooks/
-node_modules/
-jspm_packages/
-*.lock
-.env.local
-.env.dev
-.env.prod
-.env.staging
-.env.test
-.env.testing
-.env.development
-.env.production
-.env.backup
-.env.example
-.env.sample
-.env.template
-.env.default
-.env.local.example
-.env.local.sample
-.env.local.template
-.env.local.default
-.env.dev.example
-.env.dev.sample
-.env.dev.template
-.env.dev.default
-.env.prod.example
-.env.prod.sample
-.env.prod.template
-.env.prod.default
-.env.staging.example
-.env.staging.sample
-.env.staging.template
-.env.staging.default
-.env.test.example
-.env.test.sample
-.env.test.template
-.env.test.default
-.env.testing.example
-.env.testing.sample
-.env.testing.template
-.env.testing.default
-.env.development.example
-.env.development.sample
-.env.development.template
-.env.development.default
-.env.production.example
-.env.production.sample
-.env.production.template
-.env.production.default
-.env.backup.example
-.env.backup.sample
-.env.backup.template
-.env.backup.default
+*.tmp
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
 Thumbs.db
+
+# Build and distribution
+dist/
+build/
+*.egg-info/
 ```
