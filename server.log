@@ -1,0 +1,17 @@
+
+============================================================
+NESPAK Project Monitoring System
+============================================================
+Local:   http://localhost:5000
+Network: http://21.0.9.31:5000
+
+Admin password: admin123
+Guest password: guest123
+
+Press Ctrl+C to stop the server.
+============================================================
+
+ * Serving Flask app 'app'
+ * Debug mode: off
+Address already in use
+Port 5000 is in use by another program. Either identify and stop that program, or start the server with a different port.

@@ -1074,9 +1074,16 @@ def compute_period_list(entity, args):
 
     if entity == "cheques":
         period_c = resolve_period(fy_start_arg, month_arg, year_arg, cumulative, alias="c.")
-        sql = f"SELECT c.* FROM cheques c WHERE {period_c['sql_cond']}"
+        sql = f"""SELECT c.*, p.project_manager, p.project_group, p.client_name 
+                  FROM cheques c 
+                  LEFT JOIN transactions t ON c.cheque_no = t.cheque_no
+                  LEFT JOIN projects p ON t.project_id = p.id
+                  WHERE {period_c['sql_cond']}"""
         params = list(period_c["sql_params"])
-        sql += " ORDER BY c.cheque_date DESC, c.id DESC"
+        if pm:     sql += " AND (p.project_manager=? OR c.client_name=?)"; params.extend([pm, pm])
+        if grp:    sql += " AND p.project_group=?";   params.append(grp)
+        if client: sql += " AND (p.client_name=? OR c.client_name=?)"; params.extend([client, client])
+        sql += " GROUP BY c.id ORDER BY c.cheque_date DESC, c.id DESC"
         rows = query(sql, params)
         result = []
         for r in rows:
@@ -1093,11 +1100,18 @@ def compute_period_list(entity, args):
 
     if entity == "performa":
         period_p = resolve_period(fy_start_arg, month_arg, year_arg, cumulative, alias="p.")
-        sql = f"""SELECT p.*, c.cheque_no, c.cheque_date, c.amount as cheque_amount
-                  FROM performas p LEFT JOIN cheques c ON c.id=p.cheque_id
+        sql = f"""SELECT p.*, c.cheque_no, c.cheque_date, c.amount as cheque_amount,
+                         prj.project_manager, prj.project_group, prj.client_name
+                  FROM performas p 
+                  LEFT JOIN cheques c ON c.id=p.cheque_id
+                  LEFT JOIN performa_lines pl ON pl.performa_id = p.id
+                  LEFT JOIN projects prj ON pl.project_id = prj.id
                   WHERE {period_p['sql_cond']}"""
         params = list(period_p["sql_params"])
-        sql += " ORDER BY p.created_at DESC"
+        if pm:     sql += " AND prj.project_manager=?"; params.append(pm)
+        if grp:    sql += " AND prj.project_group=?";   params.append(grp)
+        if client: sql += " AND (prj.client_name=? OR pl.client_name=?)"; params.extend([client, client])
+        sql += " GROUP BY p.id ORDER BY p.created_at DESC"
         rows = query(sql, params)
         result = [dict(r) for r in rows]
         totals = {"count": len(result), "amount": sum(r["total_amount"] or 0 for r in result)}

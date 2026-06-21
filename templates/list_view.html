@@ -5,12 +5,9 @@
 <div class="filter-bar" id="periodFilterBar"></div>
 
 <div class="filter-bar">
-  {% if entity in ('invoices','receipts','expenses') %}
   <div class="filter-group"><span class="filter-label">PM</span><select id="f_pm" class="form-control" onchange="loadList()"></select></div>
   <div class="filter-group"><span class="filter-label">Group</span><select id="f_grp" class="form-control" onchange="loadList()"></select></div>
   <div class="filter-group"><span class="filter-label">Client</span><select id="f_client" class="form-control" onchange="loadList()"><option value="">All Clients</option></select></div>
-  <div class="filter-group"><span class="filter-label">Job No.</span><input id="f_job" class="form-control" placeholder="Search job no." oninput="loadList()"></div>
-  {% endif %}
   <button class="btn btn-primary btn-sm" onclick="loadList()">🔍 Refresh</button>
   <button class="btn btn-gray btn-sm" onclick="openPrintPreview()">🖨 Print Preview</button>
   <button class="btn btn-gray btn-sm" onclick="exportListExcel()">📤 Export Excel</button>
@@ -193,14 +190,12 @@ function exportListExcel() {
 document.addEventListener('DOMContentLoaded', async () => {
   await window.appReady;
   periodFilter = buildPeriodFilter('periodFilterBar', loadList);
-  if (document.getElementById('f_pm'))  buildPMSelect('f_pm');
-  if (document.getElementById('f_grp')) buildGroupSelect('f_grp');
-  if (document.getElementById('f_client')) {
-    fetch('/api/clients').then(r=>r.json()).then(clients => {
-      const sel = document.getElementById('f_client');
-      clients.forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });
-    });
-  }
+  buildPMSelect('f_pm');
+  buildGroupSelect('f_grp');
+  fetch('/api/clients').then(r=>r.json()).then(clients => {
+    const sel = document.getElementById('f_client');
+    clients.forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });
+  });
   loadList();
 });
 </script>
