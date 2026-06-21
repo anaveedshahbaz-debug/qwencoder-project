@@ -5,6 +5,7 @@
 <div class="filter-bar" id="periodFilterBar"></div>
 <div class="filter-bar">
   <div class="filter-group"><span class="filter-label">Project Manager</span><select id="r_pm" class="form-control" onchange="reloadActiveTab()"></select></div>
+  <div class="filter-group"><span class="filter-label">Group</span><select id="r_grp" class="form-control" onchange="reloadActiveTab()"><option value="">All Groups</option></select></div>
   <div class="filter-group"><span class="filter-label">Client</span><select id="r_client" class="form-control" onchange="reloadActiveTab()"><option value="">All Clients</option></select></div>
   <div class="filter-group"><span class="filter-label">Job No.</span><input id="r_job" class="form-control" placeholder="Job No." oninput="reloadActiveTab()"></div>
   <button class="btn btn-primary btn-sm" onclick="reloadActiveTab()">🔍 Show</button>
@@ -115,10 +116,12 @@ function reloadActiveTab() {
 async function loadSummary() {
   const p = periodFilter.getParams();
   const pm = document.getElementById('r_pm').value;
+  const grp = document.getElementById('r_grp').value;
   const client = document.getElementById('r_client').value;
   const job = document.getElementById('r_job').value;
   let url = `/api/projects?active=all&fy_start=${p.fy_start}&month=${p.month}&year=${p.year}&cumulative=${p.cumulative}`;
   if (pm) url += `&pm=${encodeURIComponent(pm)}`;
+  if (grp) url += `&group=${encodeURIComponent(grp)}`;
   if (client) url += `&client=${encodeURIComponent(client)}`;
   if (job) url += `&search=${encodeURIComponent(job)}`;
 
@@ -359,6 +362,7 @@ function printHistory() {
 document.addEventListener('DOMContentLoaded', async () => {
   await window.appReady;
   buildPMSelect('r_pm');
+  buildGroupSelect('r_grp');
   fetch('/api/clients').then(r=>r.json()).then(clients => {
     const sel = document.getElementById('r_client');
     clients.forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });

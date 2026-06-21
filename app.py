@@ -151,9 +151,13 @@ def init_db():
             cheque_no TEXT NOT NULL,
             cheque_date TEXT,
             amount REAL DEFAULT 0,
+            client_name TEXT,
+            bank_name TEXT,
+            memo_no TEXT,
             remarks TEXT,
             txn_month INTEGER, txn_year INTEGER,
             status TEXT DEFAULT 'Open',
+            attachment_path TEXT,
             created_at TEXT DEFAULT (date('now'))
         );
 
@@ -214,7 +218,7 @@ def init_db():
             except: pass
         for col, defn in [
             ("client_name","TEXT"), ("bank_name","TEXT"), ("memo_no","TEXT"),
-            ("attachment_name","TEXT"),
+            ("attachment_path","TEXT"),
         ]:
             try: c.execute(f"ALTER TABLE cheques ADD COLUMN {col} {defn}")
             except: pass
@@ -450,9 +454,18 @@ def list_page(entity):
     if entity not in titles:
         return redirect(url_for("dashboard"))
     title, icon = titles[entity]
+    # Map entity to entry tab for the "Add Entry" button
+    entry_tab_map = {
+        "invoices": "billing",
+        "receipts": "receipt",
+        "expenses": "expense",
+        "cheques": "cheques",
+        "performa": "performa"
+    }
+    entry_tab = entry_tab_map.get(entity, "")
     return render_template("list_view.html", role=session["role"],
                            entity=entity, entity_title=title, entity_icon=icon,
-                           active=f"list_{entity}")
+                           active=f"list_{entity}", entry_tab=entry_tab)
 
 @app.route("/projects/<int:pid>/view")
 @login_required
@@ -1043,13 +1056,13 @@ def compute_period_list(entity, args):
     period = resolve_period(fy_start_arg, month_arg, year_arg, cumulative, alias="t.")
 
     sql = f"""SELECT t.*, p.sheet_ref, p.job_no, p.project_name, p.project_manager,
-                     p.client_name, p.project_group
+                     p.client_name, p.project_group, p.client_ntn
               FROM transactions t JOIN projects p ON p.id = t.project_id
               WHERE t.txn_type=? AND {period['sql_cond']}"""
     params = [txn_type] + list(period["sql_params"])
     if pm:     sql += " AND p.project_manager=?"; params.append(pm)
     if grp:    sql += " AND p.project_group=?";   params.append(grp)
-    if client: sql += " AND p.client_name=?";     params.append(client)
+    if client: sql += " AND (p.client_name=? OR p.client_ntn=?)"; params.extend([client, client])
     if job:    sql += " AND p.job_no LIKE ?";      params.append(f"%{job}%")
     sql += " ORDER BY t.txn_year, t.txn_month, p.project_manager, p.sheet_ref, t.id"
 
@@ -1330,11 +1343,31 @@ def api_cheques_create():
     if session.get("role") != "admin":
         return jsonify({"error":"Admin only"}), 403
     d = request.get_json()
-    cid = execute("""INSERT INTO cheques (cheque_no,cheque_date,amount,remarks,txn_month,txn_year)
-        VALUES (?,?,?,?,?,?)""",
+    cid = execute("""INSERT INTO cheques (cheque_no,cheque_date,amount,client_name,bank_name,memo_no,remarks,txn_month,txn_year,attachment_path)
+        VALUES (?,?,?,?,?,?,?,?,?,?)""",
         (d.get("cheque_no"), d.get("cheque_date"), float(d.get("amount") or 0),
-         d.get("remarks"), int(d.get("month")), int(d.get("year"))))
+         d.get("client_name"), d.get("bank_name"), d.get("memo_no"),
+         d.get("remarks"), int(d.get("month")), int(d.get("year")),
+         d.get("attachment_path")))
     return jsonify({"ok": True, "id": cid})
+
+@app.route("/api/cheques/<int:cid>", methods=["PUT"])
+@login_required
+def api_cheques_update(cid):
+    if session.get("role") != "admin":
+        return jsonify({"error":"Admin only"}), 403
+    d = request.get_json()
+    fields = []
+    params = []
+    for k in ["cheque_no", "cheque_date", "amount", "client_name", "bank_name", "memo_no", "remarks", "attachment_path"]:
+        if k in d:
+            fields.append(f"{k}=?")
+            params.append(d[k] if k != "amount" else float(d[k] or 0))
+    if not fields:
+        return jsonify({"error": "No fields to update"}), 400
+    params.append(cid)
+    execute(f"UPDATE cheques SET {','.join(fields)} WHERE id=?", params)
+    return jsonify({"ok": True})
 
 @app.route("/api/cheques/<int:cid>", methods=["DELETE"])
 @login_required

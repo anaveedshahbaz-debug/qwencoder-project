@@ -265,6 +265,18 @@
     <div class="form-group"><label class="form-label">Year *</label><select id="c_year" class="form-control"></select></div>
   </div>
   <div class="form-group">
+    <label class="form-label">Client Name *</label>
+    <input type="text" id="c_client" class="form-control" placeholder="Client name">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Bank Name</label>
+    <input type="text" id="c_bank" class="form-control" placeholder="Bank name">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Memo No.</label>
+    <input type="text" id="c_memo" class="form-control" placeholder="Memo number">
+  </div>
+  <div class="form-group">
     <label class="form-label">Client Cheque No. *</label>
     <input type="text" id="c_chqNo" class="form-control" placeholder="e.g. 00002266">
   </div>
@@ -280,6 +292,15 @@
     <label class="form-label">Remarks</label>
     <input type="text" id="c_remarks" class="form-control" placeholder="e.g. Client / PM name">
   </div>
+  <div class="form-group">
+    <label class="form-label">📎 Attach Cheque Image</label>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="file" id="c_fileInput" style="display:none" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFileSelect('c')">
+      <button class="btn btn-gray btn-sm" onclick="document.getElementById('c_fileInput').click()">📎 Choose File</button>
+      <span id="c_fileLabel" style="font-size:11px;color:#94A3B8">No file attached</span>
+    </div>
+    <input type="hidden" id="c_attachName">
+  </div>
   <div style="display:flex;gap:8px;margin-top:8px">
     <button class="btn btn-primary" onclick="saveCheque()">💾 Save Cheque</button>
     <button class="btn btn-gray btn-sm" onclick="clearCheque()">Clear</button>
@@ -291,14 +312,15 @@
     <span class="card-title">All Cheques</span>
     <div style="display:flex;gap:6px">
       <a href="/list/cheques" class="btn btn-gray btn-sm" style="text-decoration:none">📋 View All / Filter / Print</a>
+      <button class="btn btn-success btn-sm" onclick="editSelectedCheque()">✏️ Edit</button>
       <button class="btn btn-danger btn-sm" onclick="deleteSelectedCheque()">🗑 Delete</button>
     </div>
   </div>
   <div class="table-wrap" style="max-height:520px;overflow-y:auto">
     <table><thead>
-      <tr><th></th><th>Sr.</th><th>Cheque No.</th><th>Date</th>
+      <tr><th></th><th>Sr.</th><th>Cheque No.</th><th>Date</th><th>Client</th><th>Bank</th><th>Memo</th>
       <th class="num">Amount</th><th class="num">Allocated</th><th class="num">Remaining</th>
-      <th>Status</th><th>Remarks</th></tr>
+      <th>Status</th><th>Remarks</th><th>Attach</th></tr>
     </thead><tbody id="chequeTable"></tbody></table>
   </div>
 </div>
@@ -676,27 +698,90 @@ let selChequeId = null;
 
 async function saveCheque() {
   const chqNo = document.getElementById('c_chqNo').value.trim();
+  const client = document.getElementById('c_client').value.trim();
   const amt   = parseFloat(document.getElementById('c_amount').value);
+  if (!client) { toast('Enter client name','error'); return; }
   if (!chqNo) { toast('Enter cheque number','error'); return; }
   if (!amt || amt <= 0) { toast('Enter a valid amount','error'); return; }
   const body = {
+    client_name: client,
+    bank_name: document.getElementById('c_bank').value,
+    memo_no: document.getElementById('c_memo').value,
     cheque_no: chqNo,
     cheque_date: document.getElementById('c_chqDate').value,
     amount: amt,
     remarks: document.getElementById('c_remarks').value,
     month: parseInt(document.getElementById('c_month').value),
     year:  parseInt(document.getElementById('c_year').value),
+    attachment_path: document.getElementById('c_attachName').value || null,
   };
   const res = await api('/api/cheques', 'POST', body);
   if (res.ok) { toast('Cheque saved!','success'); clearCheque(); loadChequeTable(); loadChequeDropdown(); }
   else toast(res.error||'Error','error');
 }
 
+let editingChequeId = null;
+
+async function editSelectedCheque() {
+  if (!selChequeId) { toast('Select a cheque to edit','warning'); return; }
+  const rows = await fetch('/api/cheques').then(r=>r.json());
+  const row = rows.find(r => r.id === selChequeId);
+  if (!row) { toast('Cheque not found','error'); return; }
+  editingChequeId = selChequeId;
+  document.getElementById('c_client').value = row.client_name || '';
+  document.getElementById('c_bank').value = row.bank_name || '';
+  document.getElementById('c_memo').value = row.memo_no || '';
+  document.getElementById('c_chqNo').value = row.cheque_no || '';
+  document.getElementById('c_chqDate').value = row.cheque_date || '';
+  document.getElementById('c_amount').value = row.amount || '';
+  document.getElementById('c_remarks').value = row.remarks || '';
+  document.getElementById('c_attachName').value = row.attachment_path || '';
+  document.getElementById('c_fileLabel').textContent = row.attachment_path ? '📎 ' + row.attachment_path : 'No file attached';
+  toast('Edit the fields and click Save to update','info');
+}
+
+async function saveCheque() {
+  const chqNo = document.getElementById('c_chqNo').value.trim();
+  const client = document.getElementById('c_client').value.trim();
+  const amt   = parseFloat(document.getElementById('c_amount').value);
+  if (!client) { toast('Enter client name','error'); return; }
+  if (!chqNo) { toast('Enter cheque number','error'); return; }
+  if (!amt || amt <= 0) { toast('Enter a valid amount','error'); return; }
+  const body = {
+    client_name: client,
+    bank_name: document.getElementById('c_bank').value,
+    memo_no: document.getElementById('c_memo').value,
+    cheque_no: chqNo,
+    cheque_date: document.getElementById('c_chqDate').value,
+    amount: amt,
+    remarks: document.getElementById('c_remarks').value,
+    month: parseInt(document.getElementById('c_month').value),
+    year:  parseInt(document.getElementById('c_year').value),
+    attachment_path: document.getElementById('c_attachName').value || null,
+  };
+  let res;
+  if (editingChequeId) {
+    res = await api(`/api/cheques/${editingChequeId}`, 'PUT', body);
+    if (res.ok) { toast('Cheque updated!','success'); editingChequeId=null; clearCheque(); loadChequeTable(); loadChequeDropdown(); }
+    else toast(res.error||'Error','error');
+  } else {
+    res = await api('/api/cheques', 'POST', body);
+    if (res.ok) { toast('Cheque saved!','success'); clearCheque(); loadChequeTable(); loadChequeDropdown(); }
+    else toast(res.error||'Error','error');
+  }
+}
+
 function clearCheque() {
+  document.getElementById('c_client').value = '';
+  document.getElementById('c_bank').value = '';
+  document.getElementById('c_memo').value = '';
   document.getElementById('c_chqNo').value = '';
   document.getElementById('c_amount').value = '';
   document.getElementById('c_remarks').value = '';
   document.getElementById('c_chqDate').value = d.toISOString().split('T')[0];
+  document.getElementById('c_attachName').value = '';
+  document.getElementById('c_fileLabel').textContent = 'No file attached';
+  editingChequeId = null;
 }
 
 async function loadChequeTable() {
@@ -711,11 +796,15 @@ async function loadChequeTable() {
       <td>${i+1}</td>
       <td style="font-weight:600">${r.cheque_no}</td>
       <td>${r.cheque_date||'—'}</td>
+      <td style="font-size:11px">${r.client_name||'—'}</td>
+      <td style="font-size:11px">${r.bank_name||'—'}</td>
+      <td style="font-size:11px">${r.memo_no||'—'}</td>
       <td class="num">${fmt(r.amount)}</td>
       <td class="num" style="color:#F59E0B">${fmt(r.allocated)}</td>
       <td class="num" style="color:${fullyUsed?'#94A3B8':'#10B981'};font-weight:600">${fmt(r.remaining)}</td>
       <td><span class="badge ${fullyUsed?'badge-success':'badge-blue'}">${fullyUsed?'Fully Booked':'Open'}</span></td>
-      <td style="font-size:11px;color:#64748B">${r.remarks||''}</td>`;
+      <td style="font-size:11px;color:#64748B">${r.remarks||''}</td>
+      <td>${r.attachment_path?'📎':'—'}</td>`;
     tbody.appendChild(tr);
   });
 }

@@ -14,7 +14,8 @@
   <button class="btn btn-primary btn-sm" onclick="loadList()">🔍 Refresh</button>
   <button class="btn btn-gray btn-sm" onclick="openPrintPreview()">🖨 Print Preview</button>
   <button class="btn btn-gray btn-sm" onclick="exportListExcel()">📤 Export Excel</button>
-  <span style="margin-left:auto;font-size:11px;color:#94A3B8" id="periodLabelDisplay"></span>
+  <a href="/entry?tab={{ entry_tab }}" class="btn btn-success btn-sm" style="margin-left:auto;text-decoration:none">➕ Add Entry</a>
+  <span style="margin-left:8px;font-size:11px;color:#94A3B8" id="periodLabelDisplay"></span>
 </div>
 
 <div class="table-wrap" style="max-height:calc(100vh - 300px);overflow-y:auto">
