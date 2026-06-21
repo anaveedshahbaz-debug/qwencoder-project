@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+
+{% if role != 'admin' %}
+<div class="card" style="text-align:center;padding:40px">
+  <div style="font-size:48px">🔒</div>
+  <h2 style="color:#EF4444;margin:12px 0">Admin Access Required</h2>
+  <p style="color:#64748B">Settings can only be changed by Admin. Please login as Admin.</p>
+  <a href="/logout" class="btn btn-primary" style="margin-top:16px;display:inline-flex">Switch User</a>
+</div>
+{% else %}
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab(this,'stOrg')">🏛 Organisation</button>
+  <button class="tab-btn" onclick="switchTab(this,'stPM')">👤 Project Managers</button>
+  <button class="tab-btn" onclick="switchTab(this,'stClients')">🏢 Clients</button>
+  <button class="tab-btn" onclick="switchTab(this,'stTax')">💸 Tax Rates</button>
+  <button class="tab-btn" onclick="switchTab(this,'stPwd')">🔒 Passwords</button>
+  <button class="tab-btn" onclick="switchTab(this,'stDB')">🗄 Database</button>
+</div>
+
+<!-- ORGANISATION -->
+<div id="stOrg" class="tab-panel active">
+  <div class="card" style="max-width:600px">
+    <div class="card-header"><span class="card-title">Organisation Settings</span></div>
+    <p style="color:#64748B;font-size:12px;margin-bottom:16px">These appear on all reports and printouts.</p>
+    <div class="form-group"><label class="form-label">Organisation Name</label>
+      <input id="cfg_org" class="form-control" value="NESPAK"></div>
+    <div class="form-group"><label class="form-label">Division Name</label>
+      <input id="cfg_div" class="form-control" value="CONSTRUCTION MANAGEMENT DIVISION"></div>
+    <div class="form-group"><label class="form-label">Report Title</label>
+      <input id="cfg_title" class="form-control" value="DIVISIONAL MONITORING OF PROJECTS"></div>
+    <div class="form-group"><label class="form-label">Invoice Prefix (Division Code)</label>
+      <input id="cfg_prefix" class="form-control" value="013" style="width:100px"></div>
+    <div class="form-group"><label class="form-label">Current Financial Year</label>
+      <input id="cfg_fy" class="form-control" value="2025-26" style="width:120px"></div>
+    <button class="btn btn-primary" onclick="saveOrgSettings()">💾 Save Settings</button>
+  </div>
+</div>
+
+<!-- PROJECT MANAGERS -->
+<div id="stPM" class="tab-panel">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">👤 Project Managers</span>
+      <button class="btn btn-primary btn-sm" onclick="openAddPM()">➕ Add PM</button>
+    </div>
+    <p style="color:#64748B;font-size:12px;margin-bottom:12px">
+      Editing employee code / designation / name here only affects the master record and NEW
+      bookings going forward — it does NOT rewrite project manager names already saved on past
+      projects or transactions.
+    </p>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>Full Name</th><th>Employee Code</th><th>Designation</th><th>Status</th><th></th>
+      </tr></thead><tbody id="pmMasterBody"></tbody></table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">🔁 Bulk Reassign Projects to a Different PM</span></div>
+    <p style="color:#64748B;font-size:12px;margin-bottom:12px">
+      Move ALL projects currently under one PM to a new PM at once (e.g. when a PM leaves and
+      someone else takes over their full portfolio). This updates the projects' current PM only —
+      historical invoices/receipts/expenses already booked keep the PM name that was true at the time.
+    </p>
+    <div class="form-row form-row-3">
+      <div class="form-group"><label class="form-label">From PM (current)</label><select id="reassign_old" class="form-control"></select></div>
+      <div class="form-group"><label class="form-label">To PM (new)</label><select id="reassign_new" class="form-control"></select></div>
+      <div class="form-group" style="display:flex;align-items:flex-end">
+        <button class="btn btn-warning" onclick="doBulkReassign()">🔁 Reassign All Projects</button>
+      </div>
+    </div>
+    <div id="reassignCount" style="font-size:12px;color:#64748B"></div>
+  </div>
+</div>
+
+<!-- CLIENTS -->
+<div id="stClients" class="tab-panel">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">🏢 Clients</span>
+      <button class="btn btn-primary btn-sm" onclick="openAddClient()">➕ Add Client</button>
+    </div>
+    <p style="color:#64748B;font-size:12px;margin-bottom:12px">
+      Editing short name / NTN / full name here only affects the master record and NEW bookings
+      going forward — past projects and invoices keep the client name that was saved at the time.
+    </p>
+    <div class="table-wrap">
+      <table><thead><tr>
+        <th>Full Name</th><th>Short Name</th><th>NTN No.</th><th>Status</th><th></th>
+      </tr></thead><tbody id="clientMasterBody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- TAX RATES -->
+<div id="stTax" class="tab-panel">
+  <div class="card" style="max-width:500px">
+    <div class="card-header"><span class="card-title">Tax Rates</span></div>
+    <p style="color:#64748B;font-size:12px;margin-bottom:12px">Current tax rates configured in the system.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Tax Name</th><th class="num">Rate %</th></tr></thead>
+        <tbody>
+          {% for name, rate in [('PST Punjab 16%', 16), ('PST Sindh 15%', 15), ('PST KPK 15%', 15), ('PST Balochistan 15%', 15), ('GST Federal 18%', 18), ('Exempt 0%', 0)] %}
+          <tr><td>{{ name }}</td><td class="num">{{ rate }}%</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p style="color:#94A3B8;font-size:11px;margin-top:12px">To add/change tax rates, edit <code>TAX_RATES</code> in <strong>app.py</strong> and restart.</p>
+  </div>
+</div>
+
+<!-- PASSWORDS -->
+<div id="stPwd" class="tab-panel">
+  <div class="card" style="max-width:500px">
+    <div class="card-header"><span class="card-title">Change Passwords</span></div>
+    <div class="form-group"><label class="form-label">New Admin Password</label>
+      <input type="password" id="newAdminPwd" class="form-control" placeholder="Leave blank to keep current"></div>
+    <div class="form-group"><label class="form-label">New Guest Password</label>
+      <input type="password" id="newGuestPwd" class="form-control" placeholder="Leave blank to keep current"></div>
+    <button class="btn btn-primary" onclick="savePwds()">💾 Save Passwords</button>
+    <div style="margin-top:16px;padding:12px;background:#FFF7ED;border-radius:8px;font-size:12px;color:#92400E">
+      ⚠️ After changing passwords, you will be logged out automatically.
+    </div>
+  </div>
+</div>
+
+<!-- DATABASE -->
+<div id="stDB" class="tab-panel">
+  <div class="card" style="max-width:600px">
+    <div class="card-header"><span class="card-title">Database Information</span></div>
+    <div id="dbStats" style="margin-bottom:16px"></div>
+    <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:16px;margin-bottom:16px">
+      <h4 style="color:#065F46;margin-bottom:8px">💾 Backup Instructions</h4>
+      <p style="font-size:12px;color:#374151;line-height:1.6">
+        Your entire data is stored in one file: <code style="background:#fff;padding:2px 6px;border-radius:4px">nespak_pms.db</code><br>
+        To backup: Copy this file to USB or OneDrive.<br>
+        To restore: Replace the file and restart the app.
+      </p>
+    </div>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+function switchTab(btn, tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+
+// ── PROJECT MANAGERS (master table) ───────────────────────────────────────────
+async function loadPMMaster() {
+  const rows = await fetch('/api/pms/master').then(r=>r.json());
+  const tbody = document.getElementById('pmMasterBody');
+  tbody.innerHTML = '';
+  rows.forEach(pm => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td style="font-weight:600">${pm.full_name}</td>
+      <td>${pm.employee_code||'—'}</td>
+      <td>${pm.designation||'—'}</td>
+      <td><span class="badge ${pm.is_active?'badge-success':'badge-danger'}">${pm.is_active?'Active':'Inactive'}</span></td>
+      <td><button class="btn btn-sm btn-outline" onclick='openEditPM(${JSON.stringify(pm)})'>✏️ Edit</button></td>`;
+    tbody.appendChild(tr);
+  });
+  // populate reassign dropdowns
+  const oldSel = document.getElementById('reassign_old');
+  const newSel = document.getElementById('reassign_new');
+  oldSel.innerHTML = rows.map(pm=>`<option value="${pm.full_name}">${pm.full_name}</option>`).join('');
+  newSel.innerHTML = rows.map(pm=>`<option value="${pm.full_name}">${pm.full_name}</option>`).join('');
+}
+
+function openAddPM() {
+  openModal('➕ Add Project Manager', `
+    <div class="form-group"><label class="form-label">Full Name *</label><input id="pm_name" class="form-control"></div>
+    <div class="form-group"><label class="form-label">Employee Code</label><input id="pm_code" class="form-control"></div>
+    <div class="form-group"><label class="form-label">Designation</label><input id="pm_desig" class="form-control" placeholder="e.g. Senior Engineer"></div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="savePM(null)">💾 Save</button>
+    </div>`);
+}
+
+function openEditPM(pm) {
+  openModal('✏️ Edit Project Manager', `
+    <div class="form-group"><label class="form-label">Full Name *</label><input id="pm_name" class="form-control" value="${pm.full_name}"></div>
+    <div class="form-group"><label class="form-label">Employee Code</label><input id="pm_code" class="form-control" value="${pm.employee_code||''}"></div>
+    <div class="form-group"><label class="form-label">Designation</label><input id="pm_desig" class="form-control" value="${pm.designation||''}"></div>
+    <div class="form-group"><label class="form-label">Status</label>
+      <select id="pm_active" class="form-control">
+        <option value="1" ${pm.is_active?'selected':''}>Active</option>
+        <option value="0" ${!pm.is_active?'selected':''}>Inactive</option>
+      </select></div>
+    <p style="font-size:11px;color:#94A3B8">Note: renaming here only changes future bookings. Past projects/transactions keep their original PM name.</p>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="savePM(${pm.id})">💾 Save</button>
+    </div>`);
+}
+
+async function savePM(id) {
+  const d = {
+    full_name: document.getElementById('pm_name').value.trim(),
+    employee_code: document.getElementById('pm_code').value.trim(),
+    designation: document.getElementById('pm_desig').value.trim(),
+    is_active: document.getElementById('pm_active')?.value ?? 1,
+  };
+  if (!d.full_name) { toast('Name is required','error'); return; }
+  const res = id ? await api(`/api/pms/master/${id}`,'PUT',d) : await api('/api/pms/master','POST',d);
+  if (res.ok) { toast('Saved!','success'); closeModal(); loadPMMaster(); }
+  else toast(res.error||'Error','error');
+}
+
+async function doBulkReassign() {
+  const oldPm = document.getElementById('reassign_old').value;
+  const newPm = document.getElementById('reassign_new').value;
+  if (oldPm === newPm) { toast('From and To PM must be different','warning'); return; }
+  if (!await confirmDialog(`Move ALL projects currently under "${oldPm}" to "${newPm}"?\n\nPast invoices/receipts/expenses already booked will keep their original PM name — only the projects' current PM changes.`)) return;
+  const res = await api('/api/projects/reassign_pm','POST',{old_pm:oldPm, new_pm:newPm});
+  if (res.ok) {
+    document.getElementById('reassignCount').textContent = `✅ ${res.count} project(s) reassigned from ${oldPm} to ${newPm}.`;
+    toast(`${res.count} projects reassigned!`,'success');
+  } else toast(res.error||'Error','error');
+}
+
+// ── CLIENTS (master table) ────────────────────────────────────────────────────
+async function loadClientMaster() {
+  const rows = await fetch('/api/clients/master').then(r=>r.json());
+  const tbody = document.getElementById('clientMasterBody');
+  tbody.innerHTML = '';
+  rows.forEach(cl => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td style="font-weight:600">${cl.full_name}</td>
+      <td>${cl.short_name||'—'}</td>
+      <td>${cl.ntn_no||'—'}</td>
+      <td><span class="badge ${cl.is_active?'badge-success':'badge-danger'}">${cl.is_active?'Active':'Inactive'}</span></td>
+      <td><button class="btn btn-sm btn-outline" onclick='openEditClient(${JSON.stringify(cl)})'>✏️ Edit</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function openAddClient() {
+  openModal('➕ Add Client', `
+    <div class="form-group"><label class="form-label">Full Name *</label><input id="cl_name" class="form-control"></div>
+    <div class="form-group"><label class="form-label">Short Name</label><input id="cl_short" class="form-control"></div>
+    <div class="form-group"><label class="form-label">NTN No.</label><input id="cl_ntn" class="form-control"></div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveClient(null)">💾 Save</button>
+    </div>`);
+}
+
+function openEditClient(cl) {
+  openModal('✏️ Edit Client', `
+    <div class="form-group"><label class="form-label">Full Name *</label><input id="cl_name" class="form-control" value="${cl.full_name}"></div>
+    <div class="form-group"><label class="form-label">Short Name</label><input id="cl_short" class="form-control" value="${cl.short_name||''}"></div>
+    <div class="form-group"><label class="form-label">NTN No.</label><input id="cl_ntn" class="form-control" value="${cl.ntn_no||''}"></div>
+    <div class="form-group"><label class="form-label">Status</label>
+      <select id="cl_active" class="form-control">
+        <option value="1" ${cl.is_active?'selected':''}>Active</option>
+        <option value="0" ${!cl.is_active?'selected':''}>Inactive</option>
+      </select></div>
+    <p style="font-size:11px;color:#94A3B8">Note: renaming here only changes future bookings. Past projects/invoices keep their original client name.</p>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveClient(${cl.id})">💾 Save</button>
+    </div>`);
+}
+
+async function saveClient(id) {
+  const d = {
+    full_name: document.getElementById('cl_name').value.trim(),
+    short_name: document.getElementById('cl_short').value.trim(),
+    ntn_no: document.getElementById('cl_ntn').value.trim(),
+    is_active: document.getElementById('cl_active')?.value ?? 1,
+  };
+  if (!d.full_name) { toast('Name is required','error'); return; }
+  const res = id ? await api(`/api/clients/master/${id}`,'PUT',d) : await api('/api/clients/master','POST',d);
+  if (res.ok) { toast('Saved!','success'); closeModal(); loadClientMaster(); }
+  else toast(res.error||'Error','error');
+}
+
+// ── ORG SETTINGS ───────────────────────────────────────────────────────────────
+async function loadSettings() {
+  const data = await api('/api/settings');
+  if (data.ORG_NAME)      document.getElementById('cfg_org').value    = data.ORG_NAME;
+  if (data.DIVISION_NAME) document.getElementById('cfg_div').value    = data.DIVISION_NAME;
+  if (data.REPORT_TITLE)  document.getElementById('cfg_title').value  = data.REPORT_TITLE;
+  if (data.INVOICE_PREFIX)document.getElementById('cfg_prefix').value = data.INVOICE_PREFIX;
+  if (data.CURRENT_FY)    document.getElementById('cfg_fy').value     = data.CURRENT_FY;
+
+  const r = await fetch('/api/projects?active=all').then(r=>r.json());
+  document.getElementById('dbStats').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+      <div class="kpi-tile" style="border-left-color:#1565C0"><div class="kpi-label">Total Projects</div><div class="kpi-value">${r.totals?.count||0}</div></div>
+    </div>`;
+}
+
+async function saveOrgSettings() {
+  const data = {
+    ORG_NAME:       document.getElementById('cfg_org').value,
+    DIVISION_NAME:  document.getElementById('cfg_div').value,
+    REPORT_TITLE:   document.getElementById('cfg_title').value,
+    INVOICE_PREFIX: document.getElementById('cfg_prefix').value,
+    CURRENT_FY:     document.getElementById('cfg_fy').value,
+  };
+  const res = await api('/api/settings', 'POST', data);
+  if (res.ok) toast('Settings saved!', 'success');
+}
+
+async function savePwds() {
+  const ap = document.getElementById('newAdminPwd').value;
+  const gp = document.getElementById('newGuestPwd').value;
+  if (!ap && !gp) { toast('Enter at least one password', 'warning'); return; }
+  const data = {};
+  if (ap) data.ADMIN_PASSWORD = ap;
+  if (gp) data.GUEST_PASSWORD = gp;
+  const res = await api('/api/settings', 'POST', data);
+  if (res.ok) {
+    toast('Passwords changed! Logging out...', 'success');
+    setTimeout(() => window.location='/logout', 2000);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if (document.getElementById('cfg_org')) {
+    await window.appReady;
+    loadSettings();
+    loadPMMaster();
+    loadClientMaster();
+  }
+});
+</script>
+{% endblock %}

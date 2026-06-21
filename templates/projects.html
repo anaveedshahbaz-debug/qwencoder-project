@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% block title %}Projects{% endblock %}
+{% block content %}
+
+<div class="filter-bar" id="periodFilterBar"></div>
+
+<div class="filter-bar">
+  <div class="filter-group">
+    <span class="filter-label">Search</span>
+    <input type="text" id="searchInput" class="form-control" placeholder="Job No / Name / Ref" oninput="loadProjects()">
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Project Manager</span>
+    <select id="pmFilter" class="form-control" onchange="loadProjects()"></select>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Group</span>
+    <select id="grpFilter" class="form-control" onchange="loadProjects()"></select>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Client</span>
+    <select id="clientFilter" class="form-control" onchange="loadProjects()"><option value="">All Clients</option></select>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">Status</span>
+    <select id="activeFilter" class="form-control" onchange="loadProjects()">
+      <option value="1">Active</option>
+      <option value="0">Inactive</option>
+      <option value="all" selected>All</option>
+    </select>
+  </div>
+  <button class="btn btn-primary btn-sm" onclick="loadProjects()">🔍 Show</button>
+</div>
+
+<!-- PERIOD TOTALS AT TOP (replaces having to click into each project) -->
+<div class="card" id="periodTotalsCard">
+  <div class="card-header"><span class="card-title">📊 Total — <span id="periodTotalsLabel"></span></span></div>
+  <div class="kpi-grid" id="periodTotalsKpis"></div>
+</div>
+
+<div class="actions-bar">
+  {% if role == 'admin' %}
+  <button class="btn btn-primary" onclick="openAddProject()">➕ New Project</button>
+  <button class="btn btn-gray"    onclick="openEditProject()">✏️ Edit Selected</button>
+  <button class="btn btn-danger btn-sm" onclick="deactivateProject()">🗑 Deactivate</button>
+  {% endif %}
+  <button class="btn btn-purple"  onclick="openProjectDetailNewTab()">🔍 Open Full Detail (New Tab)</button>
+  <button class="btn btn-gray btn-sm" onclick="openPrintPreview()">🖨 Print Preview</button>
+  <button class="btn btn-gray btn-sm" onclick="exportProjectsExcel()">📤 Export Excel</button>
+  <span style="margin-left:auto;font-size:12px;color:#64748B" id="projCount"></span>
+</div>
+
+<div class="table-wrap" style="max-height:calc(100vh - 460px);overflow-y:auto">
+  <table id="projTable">
+    <thead>
+      <tr>
+        <th>Ref</th><th>Job No.</th><th>Project Name</th><th>PM</th><th>Client</th><th>Group</th>
+        <th class="num">Fee (M)</th>
+        <th class="num">Billing</th><th>Last Bill</th>
+        <th class="num">Receipt</th><th>Last Rcpt</th>
+        <th class="num">Receivable</th>
+        <th class="num">Salary</th><th class="num">Direct</th>
+        <th class="num">P/L Bill.</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="projBody"></tbody>
+  </table>
+</div>
+<div class="totals-bar" id="projTotals" style="display:none"></div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+let selectedProjId = null;
+let allProjectRows = [];
+let periodFilter = null;
+
+async function loadProjects() {
+  const p = periodFilter.getParams();
+  const pm     = document.getElementById('pmFilter').value;
+  const grp    = document.getElementById('grpFilter').value;
+  const client = document.getElementById('clientFilter').value;
+  const srch   = document.getElementById('searchInput').value;
+  const act    = document.getElementById('activeFilter').value;
+
+  let url = `/api/projects?pm=${encodeURIComponent(pm)}&group=${encodeURIComponent(grp)}&client=${encodeURIComponent(client)}`
+          + `&search=${encodeURIComponent(srch)}&active=${act}`
+          + `&fy_start=${p.fy_start}&month=${p.month}&year=${p.year}&cumulative=${p.cumulative}`;
+
+  const data = await api(url);
+  allProjectRows = data.projects;
+  renderProjects(data.projects);
+
+  const t = data.totals;
+  document.getElementById('projCount').textContent = `${t.count} projects`;
+  document.getElementById('periodTotalsLabel').textContent = data.period_label;
+
+  const bar = document.getElementById('projTotals');
+  bar.style.display = 'flex';
+  bar.innerHTML = `<span>Projects: <strong>${t.count}</strong></span>
+    <span>Billing: <strong>${crM(t.billing)}</strong></span>
+    <span>Receipt: <strong>${crM(t.receipt)}</strong></span>
+    <span>Receivable: <strong>${crM(t.receivable)}</strong></span>`;
+
+  document.getElementById('periodTotalsKpis').innerHTML = `
+    <div class="kpi-tile" style="border-left-color:#1565C0"><div class="kpi-label">Total Projects</div><div class="kpi-value">${t.count}</div></div>
+    <div class="kpi-tile" style="border-left-color:#2196F3"><div class="kpi-label">Billing</div><div class="kpi-value">${crM(t.billing)}</div></div>
+    <div class="kpi-tile" style="border-left-color:#10B981"><div class="kpi-label">Receipt</div><div class="kpi-value">${crM(t.receipt)}</div></div>
+    <div class="kpi-tile" style="border-left-color:#F59E0B"><div class="kpi-label">Receivable</div><div class="kpi-value">${crM(t.receivable)}</div></div>
+    <div class="kpi-tile" style="border-left-color:#EF4444"><div class="kpi-label">Expense</div><div class="kpi-value">${crM(t.expense)}</div></div>
+    <div class="kpi-tile" style="border-left-color:${t.pl_billing<0?'#EF4444':'#10B981'}"><div class="kpi-label">P/L</div><div class="kpi-value" style="color:${t.pl_billing<0?'#EF4444':'#10B981'}">${crM(t.pl_billing)}</div></div>
+  `;
+}
+
+function renderProjects(projects) {
+  const tbody = document.getElementById('projBody');
+  tbody.innerHTML = '';
+  projects.forEach(p => {
+    const tr = document.createElement('tr');
+    const pl = parseFloat(p.period_pl_billing) || 0;
+    if (pl < 0) tr.classList.add('loss-row');
+    tr.dataset.id = p.id;
+    tr.innerHTML = `
+      <td><strong>${p.sheet_ref||'—'}</strong></td>
+      <td style="color:#1565C0;font-weight:600">${p.job_no||'—'}</td>
+      <td>${p.project_name}</td>
+      <td style="font-size:11px">${p.project_manager}</td>
+      <td style="font-size:11px">${p.client_name||'—'}</td>
+      <td><span class="badge badge-blue">${p.project_group||''}</span></td>
+      <td class="num">${fmt(p.nespak_fee_mil)}</td>
+      <td class="num" style="color:#1565C0;font-weight:600">${fmt(p.period_billing)}</td>
+      <td style="font-size:11px;color:#64748B">${p.last_billing||'—'}</td>
+      <td class="num" style="color:#10B981;font-weight:600">${fmt(p.period_receipt)}</td>
+      <td style="font-size:11px;color:#64748B">${p.last_receipt||'—'}</td>
+      <td class="num" style="color:#F59E0B;font-weight:600">${fmt(p.period_receivable)}</td>
+      <td class="num">${fmt(p.period_salary)}</td>
+      <td class="num">${fmt(p.period_direct)}</td>
+      <td class="num" style="color:${pl<0?'#DC2626':'#10B981'};font-weight:600">${fmt(p.period_pl_billing)}</td>
+      <td><span class="badge ${p.is_active?'badge-success':'badge-danger'}">${p.is_active?'Active':'Closed'}</span></td>`;
+    tr.addEventListener('click', () => {
+      tbody.querySelectorAll('tr').forEach(r => r.style.outline='');
+      tr.style.outline = '2px solid #1565C0';
+      selectedProjId = p.id;
+    });
+    tr.addEventListener('dblclick', () => {
+      selectedProjId = p.id;
+      window.open(`/projects/${p.id}/view`, '_blank');
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+function openProjectDetailNewTab() {
+  if (!selectedProjId) { toast('Select a project first', 'warning'); return; }
+  window.open(`/projects/${selectedProjId}/view`, '_blank');
+}
+
+function openAddProject() {
+  const html = buildProjectForm(null);
+  openModal('➕ Add New Project', html, true);
+}
+
+function openEditProject() {
+  if (!selectedProjId) { toast('Please select a project first', 'warning'); return; }
+  fetch(`/api/projects/${selectedProjId}`).then(r=>r.json()).then(data => {
+    const html = buildProjectForm(data.project);
+    openModal('✏️ Edit Project', html, true);
+  });
+}
+
+function buildProjectForm(p) {
+  const isEdit = !!p;
+  const v = (f) => p ? (p[f]||'') : '';
+  const pmOpts  = (META.project_managers||[]).map(pm => `<option value="${pm}" ${v('project_manager')===pm?'selected':''}>${pm}</option>`).join('');
+  const grpOpts = (META.project_groups||[]).map(g  => `<option value="${g}"  ${v('project_group')===g?'selected':''}>${g}</option>`).join('');
+  const amOpts  = ['None','1st','2nd','3rd','4th','5th'].map(a => `<option value="${a}" ${v('amendment')===a?'selected':''}>${a}</option>`).join('');
+
+  return `
+  <div class="form-row form-row-3">
+    <div class="form-group"><label class="form-label">Sheet Ref *</label><input id="f_sheet" class="form-control" value="${v('sheet_ref')}"></div>
+    <div class="form-group"><label class="form-label">Job No. *</label><input id="f_jobno" class="form-control" value="${v('job_no')}"></div>
+    <div class="form-group"><label class="form-label">Amendment</label><select id="f_amend" class="form-control">${amOpts}</select></div>
+  </div>
+  <div class="form-group"><label class="form-label">Project Name *</label><input id="f_name" class="form-control" value="${v('project_name')}"></div>
+  <div class="form-group"><label class="form-label">Client Name</label><input id="f_client" class="form-control" value="${v('client_name')}" placeholder="e.g. LDA, Govt of Punjab"></div>
+  <div class="form-row form-row-2">
+    <div class="form-group"><label class="form-label">Project Manager *</label><select id="f_pm" class="form-control">${pmOpts}</select></div>
+    <div class="form-group"><label class="form-label">Group</label><select id="f_grp" class="form-control">${grpOpts}</select></div>
+  </div>
+  <div class="form-row form-row-3">
+    <div class="form-group"><label class="form-label">Start Date</label><input id="f_comm" class="form-control" type="date" value="${v('comm_date')?v('comm_date').substring(0,10):''}"></div>
+    <div class="form-group"><label class="form-label">End Date</label><input id="f_comp" class="form-control" type="date" value="${v('comp_date')?v('comp_date').substring(0,10):''}"></div>
+    <div class="form-group"><label class="form-label">Duration (months)</label><input id="f_dur" class="form-control" type="number" step="0.1" value="${v('duration_months')}"></div>
+  </div>
+  <div class="form-row form-row-3">
+    <div class="form-group"><label class="form-label">NESPAK Fee (M) *</label><input id="f_fee" class="form-control" type="number" step="0.01" value="${v('nespak_fee_mil')}"></div>
+    <div class="form-group"><label class="form-label">Salary CE (Rs.)</label><input id="f_sal_ce" class="form-control" type="number" step="1" value="${v('salary_cost_est')}"></div>
+    <div class="form-group"><label class="form-label">Direct CE (Rs.)</label><input id="f_dir_ce" class="form-control" type="number" step="1" value="${v('direct_cost_est')}"></div>
+  </div>
+  <div class="form-group"><label class="form-label">Remarks</label><input id="f_remarks" class="form-control" value="${v('remarks')}"></div>
+  ${isEdit ? `<div class="form-group"><label class="form-label">Status</label>
+    <select id="f_active" class="form-control">
+      <option value="1" ${p.is_active?'selected':''}>Active</option>
+      <option value="0" ${!p.is_active?'selected':''}>Inactive</option>
+    </select></div>` : ''}
+  <div class="modal-footer">
+    <button class="btn btn-gray" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveProject(${isEdit ? p.id : 'null'})">💾 Save Project</button>
+  </div>`;
+}
+
+async function saveProject(pid) {
+  const d = {
+    sheet_ref: document.getElementById('f_sheet').value.trim(),
+    job_no: document.getElementById('f_jobno').value.trim(),
+    project_name: document.getElementById('f_name').value.trim(),
+    client_name: document.getElementById('f_client').value.trim(),
+    project_manager: document.getElementById('f_pm').value,
+    project_group: document.getElementById('f_grp').value,
+    amendment: document.getElementById('f_amend').value,
+    comm_date: document.getElementById('f_comm').value,
+    comp_date: document.getElementById('f_comp').value,
+    duration_months: document.getElementById('f_dur').value,
+    nespak_fee_mil: document.getElementById('f_fee').value,
+    salary_cost_est: document.getElementById('f_sal_ce').value,
+    direct_cost_est: document.getElementById('f_dir_ce').value,
+    remarks: document.getElementById('f_remarks').value,
+    is_active: pid ? document.getElementById('f_active').value : 1,
+  };
+  if (!d.project_name || !d.project_manager) { toast('Project name and PM are required', 'error'); return; }
+  const url = pid ? `/api/projects/${pid}` : '/api/projects';
+  const method = pid ? 'PUT' : 'POST';
+  const res = await api(url, method, d);
+  if (res.ok) { toast('Project saved!', 'success'); closeModal(); loadProjects(); loadProjectList(); loadClientFilter(); }
+  else toast(res.error || 'Error saving', 'error');
+}
+
+async function deactivateProject() {
+  if (!selectedProjId) { toast('Select a project first', 'warning'); return; }
+  if (!await confirmDialog('Deactivate this project? Data is kept but project won\'t show in active list.')) return;
+  const data = await fetch(`/api/projects/${selectedProjId}`).then(r=>r.json());
+  const p = data.project;
+  await api(`/api/projects/${selectedProjId}`, 'PUT', {...p, is_active:0});
+  toast('Project deactivated', 'warning');
+  loadProjects();
+}
+
+// ── PRINT PREVIEW ──────────────────────────────────────────────────────────────
+function openPrintPreview() {
+  const win = window.open('', '_blank');
+  const cols = [
+    ["sheet_ref","Ref"],["job_no","Job No."],["project_name","Project"],["project_manager","PM"],
+    ["client_name","Client"],["project_group","Group"],["nespak_fee_mil","Fee(M)"],
+    ["period_billing","Billing"],["period_receipt","Receipt"],["period_receivable","Receivable"],
+    ["period_salary","Salary"],["period_direct","Direct"],["period_pl_billing","P/L"],
+  ];
+  const rowsHtml = allProjectRows.map(p => '<tr>' + cols.map(([k,h]) => {
+    const v = p[k];
+    const isNum = typeof v === 'number';
+    return `<td style="${isNum?'text-align:right':''}">${isNum?fmt(v):(v||'—')}</td>`;
+  }).join('') + '</tr>').join('');
+  win.document.write(`<html><head><title>Projects — Print Preview</title>
+    <style>
+      body{font-family:Arial;font-size:10px;padding:16px}
+      h1{color:#1565C0;font-size:16px;margin-bottom:2px}
+      .sub{color:#666;font-size:11px;margin-bottom:12px}
+      table{width:100%;border-collapse:collapse}
+      th{background:#1565C0;color:#fff;padding:5px 7px;font-size:9px;text-align:left}
+      td{padding:4px 7px;border-bottom:1px solid #eee;font-size:9px}
+      tr:nth-child(even){background:#f8fafc}
+      @media print{button{display:none}}
+    </style></head><body>
+    <button onclick="window.print()" style="padding:8px 16px;margin-bottom:10px">🖨 Print / Save PDF</button>
+    <h1>NESPAK — Construction Management Division</h1>
+    <div class="sub">Projects &nbsp;|&nbsp; Period: ${document.getElementById('periodTotalsLabel').textContent}</div>
+    <table><thead><tr>${cols.map(([k,h])=>`<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${rowsHtml}</tbody></table></body></html>`);
+  win.document.close();
+}
+
+function exportProjectsExcel() {
+  const p = periodFilter.getParams();
+  const pm = document.getElementById('pmFilter').value;
+  window.location = `/api/export?fy_start=${p.fy_start}&month=${p.month}&year=${p.year}&cumulative=${p.cumulative}&pm=${encodeURIComponent(pm)}&type=summary`;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await window.appReady;
+  buildPMSelect('pmFilter');
+  buildGroupSelect('grpFilter');
+  await loadClientFilter();
+  periodFilter = buildPeriodFilter('periodFilterBar', loadProjects, {defaultFy: ''});
+  loadProjects();
+});
+
+async function loadClientFilter() {
+  const clients = await fetch('/api/clients').then(r=>r.json());
+  const sel = document.getElementById('clientFilter');
+  sel.innerHTML = '<option value="">All Clients</option>';
+  clients.forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });
+}
+</script>
+{% endblock %}

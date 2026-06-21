@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<div class="filter-bar" id="periodFilterBar"></div>
+<div class="filter-bar">
+  <div class="filter-group"><span class="filter-label">Project Manager</span><select id="dPm" class="form-control" onchange="loadDashboard()"></select></div>
+  <div class="filter-group"><span class="filter-label">Group</span><select id="dGrp" class="form-control" onchange="loadDashboard()"></select></div>
+  <button class="btn btn-primary btn-sm" onclick="loadDashboard()">🔍 Refresh</button>
+  <span style="margin-left:auto;font-size:11px;color:#94A3B8">💡 Click any month below to see detailed breakdown</span>
+</div>
+
+<!-- KPI TILES -->
+<div class="kpi-grid" id="kpiGrid">
+  <div class="kpi-tile" style="border-left-color:#1565C0"><div class="kpi-icon">📁</div><div class="kpi-label">Total Projects</div><div class="kpi-value" id="kpiTotal">—</div></div>
+  <div class="kpi-tile" style="border-left-color:#10B981"><div class="kpi-icon">✅</div><div class="kpi-label">Active Projects</div><div class="kpi-value" id="kpiActive">—</div></div>
+  <div class="kpi-tile" style="border-left-color:#2196F3"><div class="kpi-icon">💰</div><div class="kpi-label">FY Billing</div><div class="kpi-value" id="kpiBilling">—</div><div class="kpi-sub">Rs. in Million</div></div>
+  <div class="kpi-tile" style="border-left-color:#10B981"><div class="kpi-icon">🏦</div><div class="kpi-label">FY Receipt</div><div class="kpi-value" id="kpiReceipt">—</div><div class="kpi-sub">Rs. in Million</div></div>
+  <div class="kpi-tile" style="border-left-color:#F59E0B"><div class="kpi-icon">📊</div><div class="kpi-label">Total Receivable</div><div class="kpi-value" id="kpiRecv">—</div><div class="kpi-sub">Rs. in Million</div></div>
+  <div class="kpi-tile" style="border-left-color:#EF4444"><div class="kpi-icon">📉</div><div class="kpi-label">FY Expense</div><div class="kpi-value" id="kpiExpense">—</div><div class="kpi-sub">Rs. in Million</div></div>
+  <div class="kpi-tile" style="border-left-color:#8B5CF6"><div class="kpi-icon">🗓</div><div class="kpi-label">This Month Billing</div><div class="kpi-value" id="kpiTMBill">—</div><div class="kpi-sub">Rs. in Million</div></div>
+  <div class="kpi-tile" style="border-left-color:#06B6D4"><div class="kpi-icon">💳</div><div class="kpi-label">This Month Receipt</div><div class="kpi-value" id="kpiTMRcpt">—</div><div class="kpi-sub">Rs. in Million</div></div>
+</div>
+
+<div class="two-col">
+  <!-- CHART -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">📈 Monthly Billing & Receipt — FY <span id="fyChartLabel"></span></span>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm btn-outline" onclick="toggleChartType('bar')">Bar</button>
+        <button class="btn btn-sm btn-outline" onclick="toggleChartType('line')">Line</button>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+  </div>
+
+  <!-- FY MONTHLY TABLE -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">📅 Month-by-Month Summary (Rs. Million)</span>
+    </div>
+    <div style="overflow-x:auto;max-height:290px;overflow-y:auto">
+      <table id="fyTable" style="font-size:11px">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th class="num">Billing</th>
+            <th class="num">Receipt</th>
+            <th class="num">Expense</th>
+            <th class="num">Cum.Bill.</th>
+            <th class="num">Cum.Rcpt.</th>
+          </tr>
+        </thead>
+        <tbody id="fyTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- THIS MONTH ACTIVITY -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title" id="thisMonthTitle">📋 This Month Activity</span>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-sm btn-primary" onclick="window.location='/entry'">✏️ Enter Data</button>
+      <button class="btn btn-sm btn-gray"   onclick="window.location='/reports'">📊 Reports</button>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Ref</th><th>Job No.</th><th>Project Name</th><th>PM</th>
+          <th class="num">Billing</th><th>#</th>
+          <th class="num">Receipt</th><th>#</th>
+          <th class="num">Salary</th><th class="num">Direct</th>
+        </tr>
+      </thead>
+      <tbody id="thisMonthBody"></tbody>
+    </table>
+  </div>
+  <div class="totals-bar" id="thisMonthTotals" style="display:none"></div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+let chartInstance = null;
+let chartData = [];
+let chartType = 'bar';
+let currentFyStart = null;
+
+async function loadDashboard() {
+  if (!periodFilter) return;
+  const p = periodFilter.getParams();
+  const pm  = document.getElementById('dPm').value;
+  const grp = document.getElementById('dGrp').value;
+  let url = `/api/dashboard?fy_start=${p.fy_start}&month=${p.month}&year=${p.year}&cumulative=${p.cumulative}`;
+  if (pm)  url += `&pm=${encodeURIComponent(pm)}`;
+  if (grp) url += `&group=${encodeURIComponent(grp)}`;
+
+  const data = await api(url);
+  const k = data.kpis;
+  currentFyStart = data.current_fy_start;
+
+  document.getElementById('kpiTotal').textContent   = k.total_projects;
+  document.getElementById('kpiActive').textContent  = k.active_projects;
+  document.getElementById('kpiBilling').textContent = `Rs. ${fmt(k.fy_billing)} M`;
+  document.getElementById('kpiReceipt').textContent = `Rs. ${fmt(k.fy_receipt)} M`;
+  document.getElementById('kpiRecv').textContent    = `Rs. ${fmt(k.total_recv)} M`;
+  document.getElementById('kpiExpense').textContent = `Rs. ${fmt(k.fy_expense)} M`;
+  document.getElementById('kpiTMBill').textContent  = `Rs. ${fmt(k.tm_billing)} M`;
+  document.getElementById('kpiTMRcpt').textContent  = `Rs. ${fmt(k.tm_receipt)} M`;
+  document.getElementById('fyChartLabel').textContent = k.fy_label;
+
+  chartData = data.chart;
+  renderChart();
+
+  // FY table
+  const tbody = document.getElementById('fyTableBody');
+  tbody.innerHTML = '';
+  data.fy_table.forEach(r => {
+    const tr = document.createElement('tr');
+    const hasData = r.billing > 0 || r.receipt > 0 || r.expense > 0;
+    if (!hasData) tr.style.opacity = '0.4';
+    tr.style.cursor = 'pointer';
+    tr.title = 'Click to see month detail';
+    tr.innerHTML = `
+      <td><strong>${r.month}</strong></td>
+      <td class="num" style="color:#1565C0">${r.billing > 0 ? fmt(r.billing) : '—'}</td>
+      <td class="num" style="color:#10B981">${r.receipt > 0 ? fmt(r.receipt) : '—'}</td>
+      <td class="num" style="color:#EF4444">${r.expense > 0 ? fmt(r.expense) : '—'}</td>
+      <td class="num" style="color:#1565C0;font-weight:600">${fmt(r.cum_b)}</td>
+      <td class="num" style="color:#10B981;font-weight:600">${fmt(r.cum_r)}</td>`;
+    tr.addEventListener('click', () => { if (r.month_num) openMonthDetail(r.month_num, r.year); else toast('Switch to a specific FY to drill into months','info'); });
+    tbody.appendChild(tr);
+  });
+
+  // This month
+  const d = new Date();
+  document.getElementById('thisMonthTitle').textContent =
+    `📋 ${d.toLocaleString('default',{month:'long'})} ${d.getFullYear()} Activity`;
+  const rows = await api(`/api/transactions/month?month=${d.getMonth()+1}&year=${d.getFullYear()}`);
+
+  const byProj = {};
+  rows.forEach(r => {
+    if (!byProj[r.project_id]) byProj[r.project_id] = {
+      sheet_ref: r.sheet_ref, job_no: r.job_no,
+      project_name: r.project_name, pm: r.project_manager,
+      billing:0, billing_cnt:0, receipt:0, receipt_cnt:0, salary:0, direct:0
+    };
+    const p = byProj[r.project_id];
+    if (r.txn_type === 'BILLING') { p.billing += r.amount||0; p.billing_cnt++; }
+    if (r.txn_type === 'RECEIPT') { p.receipt += r.amount_received||0; p.receipt_cnt++; }
+    if (r.txn_type === 'EXPENSE') { p.salary += r.salary_actual||0; p.direct += r.direct_actual||0; }
+  });
+
+  const tm = document.getElementById('thisMonthBody');
+  tm.innerHTML = '';
+  let tb=0, tr2=0;
+  Object.values(byProj).forEach(p => {
+    tb += p.billing; tr2 += p.receipt;
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${p.sheet_ref||'—'}</td>
+      <td><strong>${p.job_no||'—'}</strong></td>
+      <td>${p.project_name}</td>
+      <td><span style="font-size:11px">${p.pm}</span></td>
+      <td class="num" style="color:#1565C0">${p.billing>0?cr(p.billing):'—'}</td>
+      <td style="text-align:center">${p.billing_cnt||''}</td>
+      <td class="num" style="color:#10B981">${p.receipt>0?cr(p.receipt):'—'}</td>
+      <td style="text-align:center">${p.receipt_cnt||''}</td>
+      <td class="num">${p.salary>0?cr(p.salary):'—'}</td>
+      <td class="num">${p.direct>0?cr(p.direct):'—'}</td>`;
+    tm.appendChild(row);
+  });
+  if (Object.keys(byProj).length === 0) {
+    tm.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#94A3B8;padding:20px">No entries this month yet.</td></tr>';
+  } else {
+    const totBar = document.getElementById('thisMonthTotals');
+    totBar.style.display = 'flex';
+    totBar.innerHTML = `<span>Projects with activity: <strong>${Object.keys(byProj).length}</strong></span>
+      <span>Billing: <strong>${crM(tb)}</strong></span>
+      <span>Receipt: <strong>${crM(tr2)}</strong></span>`;
+  }
+}
+
+function renderChart() {
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(ctx, {
+    type: chartType,
+    data: {
+      labels: chartData.map(d => d.month),
+      datasets: [
+        { label:'Billing',  data: chartData.map(d=>d.billing),  backgroundColor:'rgba(21,101,192,.75)',  borderColor:'#1565C0', borderWidth:2, fill:false },
+        { label:'Receipt',  data: chartData.map(d=>d.receipt),  backgroundColor:'rgba(16,185,129,.75)', borderColor:'#10B981', borderWidth:2, fill:false },
+        { label:'Expense',  data: chartData.map(d=>d.expense),  backgroundColor:'rgba(239,68,68,.65)',  borderColor:'#EF4444', borderWidth:2, fill:false },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      onClick: (evt, elements) => {
+        if (elements.length > 0) {
+          const idx = elements[0].index;
+          const d = chartData[idx];
+          if (d.month_num) openMonthDetail(d.month_num, d.year);
+          else toast('Switch to a specific FY to drill into months','info');
+        }
+      },
+      plugins: { legend:{position:'top', labels:{font:{size:11},boxWidth:12}}, tooltip:{callbacks:{label: c => `Rs. ${fmt(c.raw)} M (click to drill down)`}} },
+      scales: {
+        x: { grid:{color:'#F1F5F9'}, ticks:{font:{size:10}} },
+        y: { grid:{color:'#F1F5F9'}, ticks:{font:{size:10}, callback: v => `${v} M`} }
+      },
+      onHover: (event, elements) => { event.native.target.style.cursor = elements.length ? 'pointer' : 'default'; }
+    }
+  });
+}
+
+function toggleChartType(t) { chartType = t; renderChart(); }
+
+// ── MONTH DETAIL MODAL ────────────────────────────────────────────────────────
+async function openMonthDetail(month, year) {
+  const data = await api(`/api/dashboard/month_detail?month=${month}&year=${year}`);
+  const rows = data.rows;
+  const t = data.totals;
+
+  const rowsHtml = rows.map(r => `
+    <tr>
+      <td>${r.sheet_ref||'—'}</td>
+      <td style="color:#1565C0;font-weight:600">${r.job_no||'—'}</td>
+      <td>${r.project_name}</td>
+      <td style="font-size:11px">${r.project_manager}</td>
+      <td class="num" style="color:#1565C0;font-weight:600">${r.billing>0?fmt(r.billing):'—'}</td>
+      <td class="num" style="color:#10B981;font-weight:600">${r.receipt>0?fmt(r.receipt):'—'}</td>
+      <td class="num" style="color:#F59E0B">${(r.salary+r.direct)>0?fmt(r.salary+r.direct):'—'}</td>
+    </tr>`).join('');
+
+  const html = `
+    <div class="filter-bar" style="margin-bottom:12px">
+      <div class="filter-group"><span class="filter-label">PM</span><select id="md_pm" class="form-control" onchange="reloadMonthDetail(${month},${year})"><option value="">All</option></select></div>
+      <div class="filter-group"><span class="filter-label">Client</span><select id="md_client" class="form-control" onchange="reloadMonthDetail(${month},${year})"><option value="">All</option></select></div>
+      <div class="filter-group"><span class="filter-label">Job No.</span><input id="md_job" class="form-control" placeholder="Search..." oninput="reloadMonthDetail(${month},${year})"></div>
+    </div>
+    <div class="table-wrap" style="max-height:420px;overflow-y:auto">
+      <table><thead><tr>
+        <th>Ref</th><th>Job No.</th><th>Project</th><th>PM</th>
+        <th class="num">Billing</th><th class="num">Receipt</th><th class="num">Expense</th>
+      </tr></thead><tbody id="monthDetailBody">${rowsHtml || '<tr><td colspan="7" style="text-align:center;color:#94A3B8;padding:20px">No activity this month</td></tr>'}</tbody></table>
+    </div>
+    <div class="totals-bar">
+      <span>Projects: <strong>${t.count}</strong></span>
+      <span>Billing: <strong>${cr(t.billing)}</strong></span>
+      <span>Receipt: <strong>${cr(t.receipt)}</strong></span>
+      <span>Expense: <strong>${cr(t.expense)}</strong></span>
+    </div>`;
+
+  openModal(`📅 ${MONTHS[month-1]} ${year} — Detailed Breakdown`, html, true);
+  buildPMSelect('md_pm');
+  loadClientsInto('md_client');
+}
+
+async function reloadMonthDetail(month, year) {
+  const pm     = document.getElementById('md_pm')?.value || '';
+  const client = document.getElementById('md_client')?.value || '';
+  const job     = document.getElementById('md_job')?.value || '';
+  const data = await api(`/api/dashboard/month_detail?month=${month}&year=${year}&pm=${encodeURIComponent(pm)}&client=${encodeURIComponent(client)}&job=${encodeURIComponent(job)}`);
+  const rows = data.rows;
+  const tbody = document.getElementById('monthDetailBody');
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.sheet_ref||'—'}</td>
+      <td style="color:#1565C0;font-weight:600">${r.job_no||'—'}</td>
+      <td>${r.project_name}</td>
+      <td style="font-size:11px">${r.project_manager}</td>
+      <td class="num" style="color:#1565C0;font-weight:600">${r.billing>0?fmt(r.billing):'—'}</td>
+      <td class="num" style="color:#10B981;font-weight:600">${r.receipt>0?fmt(r.receipt):'—'}</td>
+      <td class="num" style="color:#F59E0B">${(r.salary+r.direct)>0?fmt(r.salary+r.direct):'—'}</td>
+    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:#94A3B8;padding:20px">No activity</td></tr>';
+}
+
+async function loadClientsInto(selectId) {
+  const clients = await fetch('/api/clients').then(r=>r.json());
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  clients.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+}
+
+let periodFilter = null;
+document.addEventListener('DOMContentLoaded', async () => {
+  await window.appReady;
+  buildPMSelect('dPm');
+  buildGroupSelect('dGrp');
+  periodFilter = buildPeriodFilter('periodFilterBar', loadDashboard);
+  loadDashboard();
+});
+</script>
+{% endblock %}

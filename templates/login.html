@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NESPAK PMS — Login</title>
+<link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="icon">🏗</div>
+      <h1>NESPAK PMS</h1>
+      <p>Construction Management Division</p>
+    </div>
+
+    <div class="role-selector">
+      <div class="role-option selected" id="roleAdmin" onclick="selectRole('admin')">
+        <div class="role-icon">👑</div>
+        <div class="role-name">Admin</div>
+      </div>
+      <div class="role-option" id="roleGuest" onclick="selectRole('guest')">
+        <div class="role-icon">👁</div>
+        <div class="role-name">Guest</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" id="pwdInput" class="form-control"
+             placeholder="Enter password" onkeydown="if(event.key==='Enter') doLogin()">
+    </div>
+
+    <div class="login-error" id="loginError">❌ Incorrect password. Please try again.</div>
+
+    <button class="btn btn-primary" style="width:100%;margin-top:16px;justify-content:center;font-size:14px;padding:11px"
+            onclick="doLogin()">LOGIN →</button>
+
+    <div style="text-align:center;margin-top:20px;color:#94A3B8;font-size:11px">
+      Project Monitoring System v3.0
+    </div>
+  </div>
+</div>
+<script>
+let selectedRole = 'admin';
+function selectRole(r) {
+  selectedRole = r;
+  document.getElementById('roleAdmin').classList.toggle('selected', r==='admin');
+  document.getElementById('roleGuest').classList.toggle('selected', r==='guest');
+  document.getElementById('pwdInput').focus();
+}
+async function doLogin() {
+  const pwd = document.getElementById('pwdInput').value;
+  const err = document.getElementById('loginError');
+  err.style.display = 'none';
+  const res = await fetch('/login', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({role: selectedRole, password: pwd})
+  });
+  const data = await res.json();
+  if (data.ok) window.location.href = data.redirect;
+  else { err.style.display = 'block'; document.getElementById('pwdInput').value=''; }
+}
+document.addEventListener('DOMContentLoaded', () => document.getElementById('pwdInput').focus());
+</script>
+</body>
+</html>

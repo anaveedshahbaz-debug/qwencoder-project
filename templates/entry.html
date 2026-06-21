@@ -1,0 +1,1041 @@
+{% extends "base.html" %}
+{% block title %}Data Entry{% endblock %}
+{% block content %}
+
+<div class="tabs" id="entryTabs">
+  <button class="tab-btn active" data-tab="tabBilling"  onclick="switchEntryTab(this,'tabBilling')">💰 Invoice (Billing)</button>
+  <button class="tab-btn"        data-tab="tabReceipt"  onclick="switchEntryTab(this,'tabReceipt')">🏦 Receipt</button>
+  <button class="tab-btn"        data-tab="tabExpense"  onclick="switchEntryTab(this,'tabExpense')">📉 Expense</button>
+  <button class="tab-btn"        data-tab="tabCheques"  onclick="switchEntryTab(this,'tabCheques')">📑 Cheques</button>
+  <button class="tab-btn"        data-tab="tabPerforma" onclick="switchEntryTab(this,'tabPerforma')">🧾 Sales Tax Performa</button>
+</div>
+
+<!-- ── BILLING TAB ───────────────────────────────────────────────────────── -->
+<div id="tabBilling" class="tab-panel active">
+<div class="two-col" style="align-items:start">
+<div class="card">
+  <div class="card-header"><span class="card-title">💰 New Invoice Entry</span></div>
+
+  <div class="form-group">
+    <label class="form-label">Job No. / Project *</label>
+    <input type="text" id="b_projSearch" class="form-control" placeholder="Type Job No. or Project Name...">
+    <input type="hidden" id="b_projId">
+    <div style="font-size:11px;color:#64748B;margin-top:4px" id="b_projInfo"></div>
+  </div>
+
+  <div class="form-row form-row-2">
+    <div class="form-group"><label class="form-label">Month *</label><select id="b_month" class="form-control" onchange="updateInvoiceNo()"></select></div>
+    <div class="form-group"><label class="form-label">Year *</label><select id="b_year" class="form-control" onchange="updateInvoiceNo()"></select></div>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Invoice No. (Auto)</label>
+    <div class="invoice-no-display" id="b_invoiceNo">Select project first</div>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Invoice Date *</label>
+    <input type="date" id="b_invDate" class="form-control">
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Invoice Amount (Rs.) *</label>
+    <input type="number" id="b_amount" class="form-control" step="0.01" placeholder="0.00" oninput="calcBillingTax()">
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Sales Tax</label>
+    <select id="b_tax" class="form-control" onchange="calcBillingTax()">
+      {% for name, rate in tax_rates.items() %}
+      <option value="{{ rate }}">{{ name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="calc-box">
+    <div class="calc-item"><div class="calc-label">Tax Amount</div><div class="calc-value" id="b_taxAmt">Rs. 0.00</div></div>
+    <div class="calc-item"><div class="calc-label">Gross Amount</div><div class="calc-value" id="b_gross" style="color:#1565C0">Rs. 0.00</div></div>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Description / Note</label>
+    <input type="text" id="b_desc" class="form-control" placeholder="Optional note">
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">📎 Attach Invoice Copy</label>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="file" id="b_fileInput" style="display:none" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls" onchange="handleFileSelect('b')">
+      <button class="btn btn-gray btn-sm" onclick="document.getElementById('b_fileInput').click()">📎 Choose File</button>
+      <span id="b_fileLabel" style="font-size:11px;color:#94A3B8">No file attached (for old/already-booked entries, you can skip)</span>
+    </div>
+    <input type="hidden" id="b_attachName">
+  </div>
+
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <button class="btn btn-primary" onclick="saveBilling()">💾 Save Invoice</button>
+    <button class="btn btn-gray btn-sm" onclick="clearBilling()">Clear</button>
+  </div>
+</div>
+
+<!-- Recent billing -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Recent Invoices</span>
+    <div style="display:flex;gap:6px">
+      <a href="/list/invoices" class="btn btn-gray btn-sm" style="text-decoration:none">📋 View All / Filter / Print</a>
+      <button class="btn btn-danger btn-sm" onclick="deleteSelectedBilling()">🗑 Delete</button>
+    </div>
+  </div>
+  <div class="table-wrap" style="max-height:520px;overflow-y:auto">
+    <table><thead>
+      <tr><th></th><th>Job No.</th><th>Period</th><th>Invoice No.</th>
+      <th class="num">Amount</th><th class="num">Tax</th><th class="num">Gross</th><th>Date</th></tr>
+    </thead><tbody id="billingTable"></tbody></table>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ── RECEIPT TAB ──────────────────────────────────────────────────────────── -->
+<div id="tabReceipt" class="tab-panel">
+<div class="two-col" style="align-items:start">
+<div class="card">
+  <div class="card-header"><span class="card-title">🏦 New Receipt Entry</span></div>
+
+  <div class="form-group">
+    <label class="form-label">Job No. / Project *</label>
+    <input type="text" id="r_projSearch" class="form-control" placeholder="Type Job No. or Project Name...">
+    <input type="hidden" id="r_projId">
+    <div style="font-size:11px;color:#64748B;margin-top:4px" id="r_projInfo"></div>
+  </div>
+
+  <div class="form-row form-row-2">
+    <div class="form-group"><label class="form-label">Month *</label><select id="r_month" class="form-control"></select></div>
+    <div class="form-group"><label class="form-label">Year *</label><select id="r_year" class="form-control"></select></div>
+  </div>
+
+  <div class="form-row form-row-2">
+    <div class="form-group"><label class="form-label">Cheque No.</label><input type="text" id="r_chqNo" class="form-control" placeholder="Cheque number"></div>
+    <div class="form-group"><label class="form-label">Cheque Date</label><input type="date" id="r_chqDate" class="form-control"></div>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Cheque Amount (Rs.) *</label>
+    <input type="number" id="r_chqAmt" class="form-control" step="0.01" placeholder="0.00" oninput="calcReceived()">
+  </div>
+
+  <!-- ADJUSTABLE -->
+  <div class="adj-section">
+    <h4>➕ Adjustable Amounts (added to received)</h4>
+    <div class="form-row form-row-3">
+      <div class="form-group"><label class="form-label">Income Tax (WHT)</label><input type="number" id="r_it" class="form-control" step="0.01" value="0" oninput="calcReceived()"></div>
+      <div class="form-group"><label class="form-label">PRA / SRB</label><input type="number" id="r_pra" class="form-control" step="0.01" value="0" oninput="calcReceived()"></div>
+      <div class="form-group"><label class="form-label">Other</label><input type="number" id="r_oadj" class="form-control" step="0.01" value="0" oninput="calcReceived()"></div>
+    </div>
+  </div>
+
+  <!-- NON-ADJUSTABLE -->
+  <div class="adj-section" style="background:#FFF7ED;border-color:#FED7AA">
+    <h4>➖ Non-Adjustable Deductions</h4>
+    <div class="form-row form-row-3">
+      <div class="form-group"><label class="form-label">Sales Tax Received</label><input type="number" id="r_st" class="form-control" step="0.01" value="0" oninput="calcReceived()"></div>
+      <div class="form-group"><label class="form-label">Sales Tax Deducted</label><input type="number" id="r_std" class="form-control" step="0.01" value="0" oninput="calcReceived()"></div>
+      <div class="form-group"><label class="form-label">Extra Sales Tax Deducted</label><input type="number" id="r_estd" class="form-control" step="0.01" value="0" oninput="calcReceived()"></div>
+    </div>
+    <div class="form-row form-row-2">
+      <div class="form-group"><label class="form-label">Other Deduction</label><input type="number" id="r_ona" class="form-control" step="0.01" value="0" oninput="calcReceived()"></div>
+    </div>
+  </div>
+
+  <div class="calc-box receipt-calc">
+    <div class="calc-item"><div class="calc-label">Amount Received</div><div class="calc-value" id="r_received" style="font-size:18px">Rs. 0.00</div></div>
+    <div class="calc-item" style="font-size:11px;color:#64748B;max-width:240px">= Cheque − (ST Received+ST Deducted+Extra ST Deducted+Other) + Adjustable (IT+PRA+Other)</div>
+  </div>
+
+  <div class="form-group" style="margin-top:8px">
+    <label class="form-label">Description / Note</label>
+    <input type="text" id="r_desc" class="form-control" placeholder="Optional note">
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">📎 Attach Receipt Copy</label>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="file" id="r_fileInput" style="display:none" accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls" onchange="handleFileSelect('r')">
+      <button class="btn btn-gray btn-sm" onclick="document.getElementById('r_fileInput').click()">📎 Choose File</button>
+      <span id="r_fileLabel" style="font-size:11px;color:#94A3B8">No file attached (for old/already-booked entries, you can skip)</span>
+    </div>
+    <input type="hidden" id="r_attachName">
+  </div>
+
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <button class="btn btn-success" onclick="saveReceipt()">💾 Save Receipt</button>
+    <button class="btn btn-gray btn-sm" onclick="clearReceipt()">Clear</button>
+  </div>
+</div>
+
+<!-- Recent receipts -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Recent Receipts</span>
+    <div style="display:flex;gap:6px">
+      <a href="/list/receipts" class="btn btn-gray btn-sm" style="text-decoration:none">📋 View All / Filter / Print</a>
+      <button class="btn btn-danger btn-sm" onclick="deleteSelectedReceipt()">🗑 Delete</button>
+    </div>
+  </div>
+  <div class="table-wrap" style="max-height:520px;overflow-y:auto">
+    <table><thead>
+      <tr><th></th><th>Job No.</th><th>Period</th><th>Cheque No.</th>
+      <th class="num">Chq Amt</th><th class="num">IT</th><th class="num">ST Rcvd</th>
+      <th class="num">Amt Rcvd</th></tr>
+    </thead><tbody id="receiptTable"></tbody></table>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ── EXPENSE TAB ──────────────────────────────────────────────────────────── -->
+<div id="tabExpense" class="tab-panel">
+<div class="two-col" style="align-items:start">
+<div class="card">
+  <div class="card-header"><span class="card-title">📉 Expense Entry</span></div>
+
+  <div class="form-group">
+    <label class="form-label">Job No. / Project *</label>
+    <input type="text" id="e_projSearch" class="form-control" placeholder="Type Job No. or Project Name...">
+    <input type="hidden" id="e_projId">
+    <div style="font-size:11px;color:#64748B;margin-top:4px" id="e_projInfo"></div>
+  </div>
+
+  <div class="form-row form-row-2">
+    <div class="form-group"><label class="form-label">Month *</label><select id="e_month" class="form-control"></select></div>
+    <div class="form-group"><label class="form-label">Year *</label><select id="e_year" class="form-control"></select></div>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Salary Cost (Rs.) *</label>
+    <input type="number" id="e_sal" class="form-control" step="0.01" placeholder="0.00" oninput="calcExpense()">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Direct Cost (Rs.)</label>
+    <input type="number" id="e_dir" class="form-control" step="0.01" placeholder="0.00" oninput="calcExpense()">
+  </div>
+
+  <div class="calc-box" style="background:#FFF7ED;border-color:#FED7AA">
+    <div class="calc-item"><div class="calc-label">Total Expense</div><div class="calc-value" id="e_total" style="color:#F59E0B;font-size:18px">Rs. 0.00</div></div>
+  </div>
+
+  <div class="form-group" style="margin-top:8px">
+    <label class="form-label">Notes</label>
+    <input type="text" id="e_desc" class="form-control" placeholder="Optional note">
+  </div>
+
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <button class="btn btn-warning" onclick="saveExpense()">💾 Save Expense</button>
+    <button class="btn btn-gray btn-sm" onclick="clearExpense()">Clear</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Recent Expenses</span>
+    <div style="display:flex;gap:6px">
+      <a href="/list/expenses" class="btn btn-gray btn-sm" style="text-decoration:none">📋 View All / Filter / Print</a>
+      <button class="btn btn-danger btn-sm" onclick="deleteSelectedExpense()">🗑 Delete</button>
+    </div>
+  </div>
+  <div class="table-wrap" style="max-height:520px;overflow-y:auto">
+    <table><thead>
+      <tr><th></th><th>Job No.</th><th>Period</th>
+      <th class="num">Salary</th><th class="num">Direct</th><th class="num">Total</th><th>Note</th></tr>
+    </thead><tbody id="expenseTable"></tbody></table>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ── CHEQUES TAB ──────────────────────────────────────────────────────────── -->
+<div id="tabCheques" class="tab-panel">
+<div class="two-col" style="align-items:start">
+<div class="card">
+  <div class="card-header"><span class="card-title">📑 New Cheque Entry</span></div>
+
+  <div class="form-row form-row-2">
+    <div class="form-group"><label class="form-label">Month *</label><select id="c_month" class="form-control"></select></div>
+    <div class="form-group"><label class="form-label">Year *</label><select id="c_year" class="form-control"></select></div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Client Cheque No. *</label>
+    <input type="text" id="c_chqNo" class="form-control" placeholder="e.g. 00002266">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Cheque Date *</label>
+    <input type="date" id="c_chqDate" class="form-control">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Cheque Amount (Rs.) *</label>
+    <input type="number" id="c_amount" class="form-control" step="0.01" placeholder="0.00">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Remarks</label>
+    <input type="text" id="c_remarks" class="form-control" placeholder="e.g. Client / PM name">
+  </div>
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <button class="btn btn-primary" onclick="saveCheque()">💾 Save Cheque</button>
+    <button class="btn btn-gray btn-sm" onclick="clearCheque()">Clear</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">All Cheques</span>
+    <div style="display:flex;gap:6px">
+      <a href="/list/cheques" class="btn btn-gray btn-sm" style="text-decoration:none">📋 View All / Filter / Print</a>
+      <button class="btn btn-danger btn-sm" onclick="deleteSelectedCheque()">🗑 Delete</button>
+    </div>
+  </div>
+  <div class="table-wrap" style="max-height:520px;overflow-y:auto">
+    <table><thead>
+      <tr><th></th><th>Sr.</th><th>Cheque No.</th><th>Date</th>
+      <th class="num">Amount</th><th class="num">Allocated</th><th class="num">Remaining</th>
+      <th>Status</th><th>Remarks</th></tr>
+    </thead><tbody id="chequeTable"></tbody></table>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ── PERFORMA TAB ─────────────────────────────────────────────────────────── -->
+<div id="tabPerforma" class="tab-panel">
+
+<div class="card">
+  <div class="card-header"><span class="card-title">🧾 New Sales Tax Performa — Book Cheque Against Invoices</span></div>
+
+  <div class="form-row form-row-3">
+    <div class="form-group"><label class="form-label">Month *</label><select id="p_month" class="form-control" onchange="onPerformaPeriodChange()"></select></div>
+    <div class="form-group"><label class="form-label">Year *</label><select id="p_year" class="form-control" onchange="onPerformaPeriodChange()"></select></div>
+    <div class="form-group"><label class="form-label">Select Cheque *</label>
+      <select id="p_cheque" class="form-control" onchange="onChequeSelected()"></select>
+    </div>
+  </div>
+
+  <div id="p_chequeInfo" class="calc-box" style="display:none">
+    <div class="calc-item"><div class="calc-label">Cheque Amount</div><div class="calc-value" id="p_chqAmtDisplay">Rs. 0.00</div></div>
+    <div class="calc-item"><div class="calc-label">Already Allocated</div><div class="calc-value" style="color:#F59E0B" id="p_chqAllocDisplay">Rs. 0.00</div></div>
+    <div class="calc-item"><div class="calc-label">Available to Book</div><div class="calc-value" style="color:#10B981" id="p_chqRemainDisplay">Rs. 0.00</div></div>
+  </div>
+
+  <div style="margin-top:12px">
+    <label class="form-label">Add Job to this Performa</label>
+    <div style="display:flex;gap:8px;align-items:flex-end">
+      <div style="flex:1">
+        <input type="text" id="p_projSearch" class="form-control" placeholder="Type Job No. or Project Name...">
+        <input type="hidden" id="p_projId">
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="addJobToPerforma()">➕ Add Job</button>
+    </div>
+  </div>
+
+  <div class="table-wrap" style="margin-top:16px;overflow-x:auto">
+    <table style="min-width:1500px" id="performaLinesTable">
+      <thead><tr>
+        <th>Job No.</th><th>Invoice</th><th style="min-width:140px">Client</th>
+        <th class="num">Inv. Amount</th><th class="num">GST</th><th class="num">Gross</th>
+        <th style="min-width:90px">PST %</th><th class="num">PST Amt</th>
+        <th class="num">IT (manual)</th><th class="num">Other</th>
+        <th class="num">ST Received</th><th class="num">ST Deducted</th><th class="num">Extra ST Ded.</th>
+        <th class="num" style="background:#DBEAFE">Cheque Share</th>
+        <th>Remarks</th><th></th>
+      </tr></thead>
+      <tbody id="performaLinesBody"></tbody>
+    </table>
+  </div>
+
+  <div class="totals-bar" id="performaTotals" style="margin-top:8px"></div>
+
+  <div style="display:flex;gap:8px;margin-top:16px">
+    <button class="btn btn-success" onclick="savePerforma()">💾 Save Performa (Auto-creates Receipts)</button>
+    <button class="btn btn-gray btn-sm" onclick="clearPerforma()">Clear All</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><span class="card-title">📋 Saved Performas</span></div>
+  <div class="filter-bar" style="margin-bottom:8px">
+    <div class="filter-group"><span class="filter-label">Month</span><select id="ph_month" class="form-control" onchange="loadPerformaHistory()"><option value="">All</option></select></div>
+    <div class="filter-group"><span class="filter-label">Year</span><select id="ph_year" class="form-control" onchange="loadPerformaHistory()"><option value="">All</option></select></div>
+  </div>
+  <div class="table-wrap" style="max-height:300px;overflow-y:auto">
+    <table><thead>
+      <tr><th>Performa No.</th><th>Cheque No.</th><th>Date</th><th class="num">Total Amount</th><th>Period</th><th></th></tr>
+    </thead><tbody id="performaHistoryBody"></tbody></table>
+  </div>
+</div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+const d = new Date();
+let selBillingId=null, selReceiptId=null, selExpenseId=null;
+
+function switchEntryTab(btn, tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+
+// ── BILLING ──────────────────────────────────────────────────────────────────
+function calcBillingTax() {
+  const amt  = parseFloat(document.getElementById('b_amount').value) || 0;
+  const rate = parseFloat(document.getElementById('b_tax').value) || 0;
+  const tax  = amt * rate / 100;
+  document.getElementById('b_taxAmt').textContent = `Rs. ${fmt(tax)}`;
+  document.getElementById('b_gross').textContent  = `Rs. ${fmt(amt + tax)}`;
+}
+
+async function updateInvoiceNo() {
+  const pid = document.getElementById('b_projId').value;
+  if (!pid) return;
+  const p = _allProjects.find(x => x.id == pid);
+  if (!p) return;
+  const month = document.getElementById('b_month').value;
+  const year  = document.getElementById('b_year').value;
+  const fy = (parseInt(month) >= 7)
+    ? `${year}-${String(parseInt(year)+1).slice(-2)}`
+    : `${parseInt(year)-1}-${String(year).slice(-2)}`;
+  // get next seq from server via recent billings for project
+  const rows = await fetch(`/api/transactions/recent?type=BILLING`).then(r=>r.json());
+  const projRows = rows.filter(r => r.project_id == pid && r.invoice_no && r.invoice_no.includes(fy));
+  let maxSeq = 0;
+  projRows.forEach(r => {
+    const parts = r.invoice_no.split('/');
+    const seq = parseInt(parts[parts.length-1]) || 0;
+    if (seq > maxSeq) maxSeq = seq;
+  });
+  const nextSeq = String(maxSeq + 1).padStart(2,'0');
+  document.getElementById('b_invoiceNo').textContent = `${META.invoice_prefix || '013'}/${p.job_no}/${fy}/${nextSeq}`;
+}
+
+async function saveBilling() {
+  const pid = document.getElementById('b_projId').value;
+  if (!pid) { toast('Please select a project','error'); return; }
+  const amt = parseFloat(document.getElementById('b_amount').value);
+  if (!amt || amt <= 0) { toast('Enter a valid amount','error'); return; }
+  const month = parseInt(document.getElementById('b_month').value);
+  const year  = parseInt(document.getElementById('b_year').value);
+  const body = {
+    project_id: pid, month, year, txn_type: 'BILLING',
+    amount: amt, tax_rate: document.getElementById('b_tax').value,
+    invoice_date: document.getElementById('b_invDate').value,
+    description: document.getElementById('b_desc').value,
+  };
+  const res = await submitTxnWithChecks(body, 'b');
+  if (res && res.ok) { toast('Invoice saved!','success'); clearBilling(); loadBillingTable(); }
+  else if (res && res.error) toast(res.error,'error');
+}
+
+function clearBilling() {
+  document.getElementById('b_amount').value = '';
+  document.getElementById('b_desc').value   = '';
+  document.getElementById('b_invDate').value = d.toISOString().split('T')[0];
+  document.getElementById('b_taxAmt').textContent = 'Rs. 0.00';
+  document.getElementById('b_gross').textContent  = 'Rs. 0.00';
+  clearFileSelect('b');
+}
+
+async function loadBillingTable() {
+  const rows = await fetch('/api/transactions/recent?type=BILLING').then(r=>r.json());
+  const tbody = document.getElementById('billingTable');
+  tbody.innerHTML = '';
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><input type="radio" name="selBilling" onchange="selBillingId=${r.id}"></td>
+      <td style="color:#1565C0;font-weight:600">${r.job_no||'—'}</td>
+      <td>${MONTHS_S[r.txn_month-1]}-${r.txn_year}</td>
+      <td style="font-size:11px">${r.invoice_no||'—'}</td>
+      <td class="num" style="font-weight:600">${fmt(r.amount)}</td>
+      <td class="num">${fmt(r.tax_amount)}</td>
+      <td class="num" style="color:#1565C0">${fmt(r.gross_amount)}</td>
+      <td style="font-size:11px">${r.invoice_date||'—'}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function deleteSelectedBilling() {
+  if (!selBillingId) { toast('Select a row first','warning'); return; }
+  if (!await confirmDialog('Delete this invoice?')) return;
+  const res = await api(`/api/transactions/${selBillingId}`, 'DELETE');
+  if (res.ok) { toast('Deleted','success'); selBillingId=null; loadBillingTable(); }
+}
+
+// ── FILE ATTACHMENT HANDLING (shared by billing & receipt) ───────────────────
+const pendingFiles = {}; // prefix -> File object
+
+async function handleFileSelect(prefix) {
+  const input = document.getElementById(`${prefix}_fileInput`);
+  const file = input.files[0];
+  if (!file) return;
+  pendingFiles[prefix] = file;
+  document.getElementById(`${prefix}_fileLabel`).textContent = `📎 ${file.name}`;
+  document.getElementById(`${prefix}_fileLabel`).style.color = '#10B981';
+}
+
+async function uploadPendingFile(prefix) {
+  const file = pendingFiles[prefix];
+  if (!file) return null;
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch('/api/upload', { method:'POST', body: fd });
+  const data = await res.json();
+  return data.ok ? data.filename : null;
+}
+
+function clearFileSelect(prefix) {
+  delete pendingFiles[prefix];
+  const input = document.getElementById(`${prefix}_fileInput`);
+  if (input) input.value = '';
+  const lbl = document.getElementById(`${prefix}_fileLabel`);
+  if (lbl) { lbl.textContent = 'No file attached (for old/already-booked entries, you can skip)'; lbl.style.color = '#94A3B8'; }
+}
+
+/**
+ * Generic submit-with-attachment-check flow.
+ * Tries to save; if server says no_attachment, asks user to confirm; retries with confirmed_no_attachment.
+ * If server says duplicate, asks user to confirm; retries with confirmed.
+ */
+async function submitTxnWithChecks(body, prefix) {
+  // upload file first if one is selected
+  if (pendingFiles[prefix]) {
+    const filename = await uploadPendingFile(prefix);
+    if (filename) body.attachment_name = filename;
+  }
+  let res = await api('/api/transactions', 'POST', body);
+  if (res.no_attachment) {
+    if (!await confirmDialog(`⚠️ ${res.message}`)) return null;
+    body.confirmed_no_attachment = true;
+    res = await api('/api/transactions', 'POST', body);
+  }
+  if (res.duplicate) {
+    if (!await confirmDialog(`⚠️ ${res.message}`)) return null;
+    body.confirmed = true;
+    res = await api('/api/transactions', 'POST', body);
+    if (res.no_attachment) {
+      if (!await confirmDialog(`⚠️ ${res.message}`)) return null;
+      body.confirmed_no_attachment = true;
+      res = await api('/api/transactions', 'POST', body);
+    }
+  }
+  return res;
+}
+
+// ── RECEIPT ───────────────────────────────────────────────────────────────────
+function calcReceived() {
+  const chq  = parseFloat(document.getElementById('r_chqAmt').value) || 0;
+  const it   = parseFloat(document.getElementById('r_it').value)     || 0;
+  const pra  = parseFloat(document.getElementById('r_pra').value)    || 0;
+  const oa   = parseFloat(document.getElementById('r_oadj').value)   || 0;
+  const st   = parseFloat(document.getElementById('r_st').value)     || 0;
+  const std  = parseFloat(document.getElementById('r_std').value)    || 0;
+  const estd = parseFloat(document.getElementById('r_estd').value)   || 0;
+  const ona  = parseFloat(document.getElementById('r_ona').value)    || 0;
+  const received = chq - st - std - estd + it + pra + oa - ona;
+  document.getElementById('r_received').textContent = `Rs. ${fmt(received)}`;
+  document.getElementById('r_received').style.color = received >= 0 ? '#1565C0' : '#EF4444';
+}
+
+async function saveReceipt() {
+  const pid = document.getElementById('r_projId').value;
+  if (!pid) { toast('Please select a project','error'); return; }
+  const chq = parseFloat(document.getElementById('r_chqAmt').value);
+  if (!chq || chq <= 0) { toast('Enter cheque amount','error'); return; }
+  const month = parseInt(document.getElementById('r_month').value);
+  const year  = parseInt(document.getElementById('r_year').value);
+  const body = {
+    project_id: pid, month, year, txn_type: 'RECEIPT',
+    cheque_no: document.getElementById('r_chqNo').value,
+    cheque_date: document.getElementById('r_chqDate').value,
+    cheque_amount: chq,
+    it_adjustable:    parseFloat(document.getElementById('r_it').value)   || 0,
+    pra_adjustable:   parseFloat(document.getElementById('r_pra').value)  || 0,
+    other_adjustable: parseFloat(document.getElementById('r_oadj').value) || 0,
+    st_received:      parseFloat(document.getElementById('r_st').value)   || 0,
+    st_deducted:       parseFloat(document.getElementById('r_std').value)  || 0,
+    extra_st_deducted: parseFloat(document.getElementById('r_estd').value) || 0,
+    other_non_adj:    parseFloat(document.getElementById('r_ona').value)  || 0,
+    description: document.getElementById('r_desc').value,
+  };
+  const res = await submitTxnWithChecks(body, 'r');
+  if (res && res.ok) { toast('Receipt saved!','success'); clearReceipt(); loadReceiptTable(); }
+  else if (res && res.error) toast(res.error,'error');
+}
+
+function clearReceipt() {
+  ['r_chqAmt','r_it','r_pra','r_oadj','r_st','r_std','r_estd','r_ona'].forEach(id => document.getElementById(id).value='0');
+  document.getElementById('r_chqNo').value='';
+  document.getElementById('r_chqDate').value = d.toISOString().split('T')[0];
+  document.getElementById('r_desc').value='';
+  document.getElementById('r_received').textContent='Rs. 0.00';
+  clearFileSelect('r');
+}
+
+async function loadReceiptTable() {
+  const rows = await fetch('/api/transactions/recent?type=RECEIPT').then(r=>r.json());
+  const tbody = document.getElementById('receiptTable');
+  tbody.innerHTML='';
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.classList.add('receipt-row');
+    tr.innerHTML=`<td><input type="radio" name="selReceipt" onchange="selReceiptId=${r.id}"></td>
+      <td style="color:#1565C0;font-weight:600">${r.job_no||'—'}</td>
+      <td>${MONTHS_S[r.txn_month-1]}-${r.txn_year}</td>
+      <td style="font-size:11px">${r.cheque_no||'—'}</td>
+      <td class="num">${fmt(r.cheque_amount)}</td>
+      <td class="num" style="color:#8B5CF6">${fmt(r.it_adjustable)}</td>
+      <td class="num" style="color:#EF4444">${fmt(r.st_received)}</td>
+      <td class="num" style="color:#10B981;font-weight:700">${fmt(r.amount_received)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+
+async function deleteSelectedReceipt() {
+  if (!selReceiptId) { toast('Select a row first','warning'); return; }
+  if (!await confirmDialog('Delete this receipt?')) return;
+  const res = await api(`/api/transactions/${selReceiptId}`, 'DELETE');
+  if (res.ok) { toast('Deleted','success'); selReceiptId=null; loadReceiptTable(); }
+}
+
+// ── EXPENSE ───────────────────────────────────────────────────────────────────
+function calcExpense() {
+  const sal = parseFloat(document.getElementById('e_sal').value)||0;
+  const dir = parseFloat(document.getElementById('e_dir').value)||0;
+  document.getElementById('e_total').textContent = `Rs. ${fmt(sal+dir)}`;
+}
+
+async function saveExpense() {
+  const pid = document.getElementById('e_projId').value;
+  if (!pid) { toast('Please select a project','error'); return; }
+  const sal = parseFloat(document.getElementById('e_sal').value)||0;
+  const dir = parseFloat(document.getElementById('e_dir').value)||0;
+  if (!sal && !dir) { toast('Enter salary or direct cost','error'); return; }
+  const month = parseInt(document.getElementById('e_month').value);
+  const year  = parseInt(document.getElementById('e_year').value);
+  const body = {
+    project_id: pid, month, year, txn_type: 'EXPENSE',
+    salary_actual: sal, direct_actual: dir,
+    description: document.getElementById('e_desc').value,
+  };
+  const res = await api('/api/transactions', 'POST', body);
+  if (res.duplicate) {
+    if (!await confirmDialog(`⚠️ ${res.message}`)) return;
+    body.confirmed = true;
+    const res2 = await api('/api/transactions', 'POST', body);
+    if (res2.ok) { toast('Expense saved!','success'); clearExpense(); loadExpenseTable(); return; }
+  }
+  if (res.ok) { toast('Expense saved!','success'); clearExpense(); loadExpenseTable(); }
+  else toast(res.error||'Error','error');
+}
+
+function clearExpense() {
+  document.getElementById('e_sal').value='';
+  document.getElementById('e_dir').value='';
+  document.getElementById('e_desc').value='';
+  document.getElementById('e_total').textContent='Rs. 0.00';
+}
+
+async function loadExpenseTable() {
+  const rows = await fetch('/api/transactions/recent?type=EXPENSE').then(r=>r.json());
+  const tbody = document.getElementById('expenseTable');
+  tbody.innerHTML='';
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.classList.add('expense-row');
+    const total = (r.salary_actual||0)+(r.direct_actual||0);
+    tr.innerHTML=`<td><input type="radio" name="selExpense" onchange="selExpenseId=${r.id}"></td>
+      <td style="color:#1565C0;font-weight:600">${r.job_no||'—'}</td>
+      <td>${MONTHS_S[r.txn_month-1]}-${r.txn_year}</td>
+      <td class="num">${fmt(r.salary_actual)}</td>
+      <td class="num">${fmt(r.direct_actual)}</td>
+      <td class="num" style="font-weight:700;color:#F59E0B">${fmt(total)}</td>
+      <td style="font-size:11px;color:#64748B">${r.description||''}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function deleteSelectedExpense() {
+  if (!selExpenseId) { toast('Select a row first','warning'); return; }
+  if (!await confirmDialog('Delete this expense?')) return;
+  const res = await api(`/api/transactions/${selExpenseId}`, 'DELETE');
+  if (res.ok) { toast('Deleted','success'); selExpenseId=null; loadExpenseTable(); }
+}
+
+// ── CHEQUES ────────────────────────────────────────────────────────────────────
+let selChequeId = null;
+
+async function saveCheque() {
+  const chqNo = document.getElementById('c_chqNo').value.trim();
+  const amt   = parseFloat(document.getElementById('c_amount').value);
+  if (!chqNo) { toast('Enter cheque number','error'); return; }
+  if (!amt || amt <= 0) { toast('Enter a valid amount','error'); return; }
+  const body = {
+    cheque_no: chqNo,
+    cheque_date: document.getElementById('c_chqDate').value,
+    amount: amt,
+    remarks: document.getElementById('c_remarks').value,
+    month: parseInt(document.getElementById('c_month').value),
+    year:  parseInt(document.getElementById('c_year').value),
+  };
+  const res = await api('/api/cheques', 'POST', body);
+  if (res.ok) { toast('Cheque saved!','success'); clearCheque(); loadChequeTable(); loadChequeDropdown(); }
+  else toast(res.error||'Error','error');
+}
+
+function clearCheque() {
+  document.getElementById('c_chqNo').value = '';
+  document.getElementById('c_amount').value = '';
+  document.getElementById('c_remarks').value = '';
+  document.getElementById('c_chqDate').value = d.toISOString().split('T')[0];
+}
+
+async function loadChequeTable() {
+  const m = document.getElementById('c_month')?.value;
+  const rows = await fetch('/api/cheques').then(r=>r.json());
+  const tbody = document.getElementById('chequeTable');
+  tbody.innerHTML = '';
+  rows.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    const fullyUsed = r.remaining <= 0.5;
+    tr.innerHTML = `<td><input type="radio" name="selCheque" onchange="selChequeId=${r.id}"></td>
+      <td>${i+1}</td>
+      <td style="font-weight:600">${r.cheque_no}</td>
+      <td>${r.cheque_date||'—'}</td>
+      <td class="num">${fmt(r.amount)}</td>
+      <td class="num" style="color:#F59E0B">${fmt(r.allocated)}</td>
+      <td class="num" style="color:${fullyUsed?'#94A3B8':'#10B981'};font-weight:600">${fmt(r.remaining)}</td>
+      <td><span class="badge ${fullyUsed?'badge-success':'badge-blue'}">${fullyUsed?'Fully Booked':'Open'}</span></td>
+      <td style="font-size:11px;color:#64748B">${r.remarks||''}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function deleteSelectedCheque() {
+  if (!selChequeId) { toast('Select a cheque first','warning'); return; }
+  if (!await confirmDialog('Delete this cheque?')) return;
+  const res = await api(`/api/cheques/${selChequeId}`, 'DELETE');
+  if (res.ok) { toast('Deleted','success'); selChequeId=null; loadChequeTable(); loadChequeDropdown(); }
+  else toast(res.error||'Cannot delete','error');
+}
+
+// ── PERFORMA ───────────────────────────────────────────────────────────────────
+let performaLines = []; // local working array of line objects
+let performaChequeData = null;
+
+async function onPerformaPeriodChange() {
+  if (performaLines.length > 0) {
+    if (!await confirmDialog('Changing the month will clear the jobs you have added so far. Continue?')) {
+      return;
+    }
+    performaLines = [];
+    renderPerformaLines();
+  }
+  loadChequeDropdown();
+}
+
+async function loadChequeDropdown() {
+  const m = document.getElementById('p_month')?.value;
+  const y = document.getElementById('p_year')?.value;
+  if (!m || !y) return;
+  const rows = await fetch(`/api/cheques?month=${m}&year=${y}`).then(r=>r.json());
+  const sel = document.getElementById('p_cheque');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Select a cheque...</option>';
+  const usable = rows.filter(r => r.remaining > 0.5); // hide fully-booked cheques
+  if (usable.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = ''; opt.textContent = 'No available cheques for this month — add one in the Cheques tab';
+    opt.disabled = true;
+    sel.appendChild(opt);
+  }
+  usable.forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.id;
+    opt.textContent = `${r.cheque_no} — Rs.${fmt(r.amount)} (Available: Rs.${fmt(r.remaining)})`;
+    opt.dataset.amount = r.amount;
+    opt.dataset.allocated = r.allocated;
+    opt.dataset.remaining = r.remaining;
+    sel.appendChild(opt);
+  });
+  // current selection no longer valid if month changed -> reset info panel
+  document.getElementById('p_chequeInfo').style.display = 'none';
+  performaChequeData = null;
+}
+
+function onChequeSelected() {
+  const sel = document.getElementById('p_cheque');
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt || !opt.value) {
+    document.getElementById('p_chequeInfo').style.display = 'none';
+    performaChequeData = null;
+    return;
+  }
+  performaChequeData = {
+    id: opt.value,
+    amount: parseFloat(opt.dataset.amount),
+    allocated: parseFloat(opt.dataset.allocated),
+    remaining: parseFloat(opt.dataset.remaining),
+  };
+  document.getElementById('p_chequeInfo').style.display = 'flex';
+  document.getElementById('p_chqAmtDisplay').textContent = `Rs. ${fmt(performaChequeData.amount)}`;
+  document.getElementById('p_chqAllocDisplay').textContent = `Rs. ${fmt(performaChequeData.allocated)}`;
+  document.getElementById('p_chqRemainDisplay').textContent = `Rs. ${fmt(performaChequeData.remaining)}`;
+}
+
+async function addJobToPerforma() {
+  const pid = document.getElementById('p_projId').value;
+  if (!pid) { toast('Please select a project / job','error'); return; }
+  if (!performaChequeData) { toast('Please select a cheque first','error'); return; }
+
+  // fetch pending (unpaid) invoices for this project
+  const pending = await fetch(`/api/performa/pending_invoices?project_id=${pid}`).then(r=>r.json());
+  if (pending.length === 0) {
+    toast('No pending invoices for this job — all invoices already fully received.', 'warning');
+    return;
+  }
+
+  const projInfo = _allProjects.find(p => p.id == pid);
+
+  pending.forEach(inv => {
+    // skip if already added to current working list
+    if (performaLines.find(l => l.invoice_txn_id === inv.id)) return;
+    performaLines.push({
+      project_id: pid,
+      job_no: projInfo?.job_no || '',
+      project_name: projInfo?.project_name || '',
+      invoice_txn_id: inv.id,
+      invoice_no: inv.invoice_no,
+      invoice_date: inv.invoice_date,
+      invoice_amount: inv.amount,
+      invoice_tax: inv.tax_amount,
+      invoice_gross: inv.gross_amount,
+      balance: inv.balance,
+      pst_rate: 0, pst_amount: 0,
+      it_amount: 0, other_amount: 0,
+      cheque_share: 0,
+      st_received: 0, st_deducted: 0, extra_st_deducted: 0,
+      client_name: projInfo?.client_name || '',
+      client_ntn: '',
+      remarks: '',
+    });
+  });
+
+  document.getElementById('p_projSearch').value = '';
+  document.getElementById('p_projId').value = '';
+  renderPerformaLines();
+}
+
+function renderPerformaLines() {
+  const tbody = document.getElementById('performaLinesBody');
+  tbody.innerHTML = '';
+  const taxOptions = Object.entries(META.tax_rates || {});
+
+  performaLines.forEach((l, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-weight:600;color:#1565C0">${l.job_no}</td>
+      <td style="font-size:11px">${l.invoice_no}<br><span style="color:#94A3B8">Bal: ${fmt(l.balance)}</span></td>
+      <td><input class="form-control" style="font-size:11px;padding:4px" value="${l.client_name||''}" onchange="updatePerformaLine(${idx},'client_name',this.value)"></td>
+      <td class="num">${fmt(l.invoice_amount)}</td>
+      <td class="num">${fmt(l.invoice_tax)}</td>
+      <td class="num" style="font-weight:600">${fmt(l.invoice_gross)}</td>
+      <td>
+        <select class="form-control" style="font-size:11px;padding:4px" onchange="updatePstRate(${idx},this.value)">
+          <option value="0">Manual</option>
+          ${taxOptions.map(([n,r]) => `<option value="${r}" ${l.pst_rate==r?'selected':''}>${n}</option>`).join('')}
+        </select>
+      </td>
+      <td><input type="number" class="form-control" style="font-size:11px;padding:4px;width:90px" value="${l.pst_amount}" onchange="updatePerformaLine(${idx},'pst_amount',parseFloat(this.value)||0)"></td>
+      <td><input type="number" class="form-control" style="font-size:11px;padding:4px;width:90px" value="${l.it_amount}" onchange="updatePerformaLine(${idx},'it_amount',parseFloat(this.value)||0)"></td>
+      <td><input type="number" class="form-control" style="font-size:11px;padding:4px;width:80px" value="${l.other_amount}" onchange="updatePerformaLine(${idx},'other_amount',parseFloat(this.value)||0)"></td>
+      <td><input type="number" class="form-control" style="font-size:11px;padding:4px;width:90px" value="${l.st_received}" onchange="updatePerformaLine(${idx},'st_received',parseFloat(this.value)||0)"></td>
+      <td><input type="number" class="form-control" style="font-size:11px;padding:4px;width:90px" value="${l.st_deducted}" onchange="updatePerformaLine(${idx},'st_deducted',parseFloat(this.value)||0)"></td>
+      <td><input type="number" class="form-control" style="font-size:11px;padding:4px;width:90px" value="${l.extra_st_deducted}" onchange="updatePerformaLine(${idx},'extra_st_deducted',parseFloat(this.value)||0)"></td>
+      <td style="background:#EFF6FF"><input type="number" class="form-control" style="font-size:11px;padding:4px;width:100px;font-weight:700" value="${l.cheque_share}" onchange="updatePerformaLine(${idx},'cheque_share',parseFloat(this.value)||0)"></td>
+      <td><input class="form-control" style="font-size:11px;padding:4px;width:100px" value="${l.remarks||''}" onchange="updatePerformaLine(${idx},'remarks',this.value)"></td>
+      <td><button class="btn btn-danger btn-sm" onclick="removePerformaLine(${idx})">🗑</button></td>`;
+    tbody.appendChild(tr);
+  });
+
+  updatePerformaTotals();
+}
+
+function updatePerformaLine(idx, field, value) {
+  performaLines[idx][field] = value;
+  updatePerformaTotals();
+}
+
+function updatePstRate(idx, rate) {
+  rate = parseFloat(rate) || 0;
+  const l = performaLines[idx];
+  l.pst_rate = rate;
+  if (rate > 0) {
+    l.pst_amount = Math.round(l.invoice_amount * rate / 100 * 100) / 100;
+  }
+  renderPerformaLines();
+}
+
+function removePerformaLine(idx) {
+  performaLines.splice(idx, 1);
+  renderPerformaLines();
+}
+
+function updatePerformaTotals() {
+  const totalShare = performaLines.reduce((s,l) => s + (parseFloat(l.cheque_share)||0), 0);
+  const totalGross = performaLines.reduce((s,l) => s + (parseFloat(l.invoice_gross)||0), 0);
+  const bar = document.getElementById('performaTotals');
+  const remaining = performaChequeData ? (performaChequeData.remaining - totalShare) : 0;
+  bar.innerHTML = `<span>Jobs/Invoices: <strong>${performaLines.length}</strong></span>
+    <span>Total Invoice Gross: <strong>${cr(totalGross)}</strong></span>
+    <span>Total Cheque Share Allocated: <strong>${cr(totalShare)}</strong></span>
+    ${performaChequeData ? `<span>Cheque Balance After This: <strong style="color:${remaining<0?'#FCA5A5':'#fff'}">${cr(remaining)}</strong></span>` : ''}`;
+}
+
+async function savePerforma() {
+  if (!performaChequeData) { toast('Please select a cheque','error'); return; }
+  if (performaLines.length === 0) { toast('Add at least one job/invoice','error'); return; }
+
+  // Validation: per-line applied amount must not exceed invoice's outstanding balance
+  for (const l of performaLines) {
+    const applied = (parseFloat(l.cheque_share)||0) + (parseFloat(l.st_received)||0) +
+                     (parseFloat(l.st_deducted)||0) + (parseFloat(l.extra_st_deducted)||0);
+    if (applied > l.balance + 1) {
+      toast(`⚠️ ${l.job_no} / ${l.invoice_no}: Applied amount (Rs.${fmt(applied)}) exceeds outstanding balance (Rs.${fmt(l.balance)}). Adjust before saving.`, 'error');
+      return;
+    }
+  }
+
+  // Validation: total cheque share allocated must reconcile against the cheque amount available
+  const totalShare = performaLines.reduce((s,l) => s + (parseFloat(l.cheque_share)||0), 0);
+  const diff = Math.abs(totalShare - performaChequeData.remaining);
+  if (diff > 1) {
+    if (!await confirmDialog(
+      `⚠️ Total Job Allocation (Rs.${fmt(totalShare)}) does not match Cheque's Available Amount (Rs.${fmt(performaChequeData.remaining)}).\n` +
+      `Difference: Rs.${fmt(performaChequeData.remaining - totalShare)}\n\nSave anyway?`)) return;
+  }
+
+  const body = {
+    cheque_id: performaChequeData.id,
+    month: parseInt(document.getElementById('p_month').value),
+    year:  parseInt(document.getElementById('p_year').value),
+    lines: performaLines,
+  };
+  const res = await api('/api/performa', 'POST', body);
+  if (res.ok) {
+    toast(`Performa ${res.performa_no} saved! Receipts auto-created in each job.`, 'success');
+    clearPerforma();
+    loadChequeDropdown(); loadChequeTable(); loadPerformaHistory();
+    loadReceiptTable();
+  } else toast(res.error||'Error','error');
+}
+
+function clearPerforma() {
+  performaLines = [];
+  performaChequeData = null;
+  document.getElementById('p_cheque').value = '';
+  document.getElementById('p_chequeInfo').style.display = 'none';
+  renderPerformaLines();
+}
+
+async function loadPerformaHistory() {
+  const m = document.getElementById('ph_month')?.value || '';
+  const y = document.getElementById('ph_year')?.value || '';
+  let url = '/api/performa?';
+  if (m) url += `month=${m}&`;
+  if (y) url += `year=${y}&`;
+  const rows = await fetch(url).then(r=>r.json());
+  const tbody = document.getElementById('performaHistoryBody');
+  tbody.innerHTML = '';
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td style="font-weight:600;color:#1565C0">${r.performa_no}</td>
+      <td>${r.cheque_no||'—'}</td>
+      <td>${r.cheque_date||'—'}</td>
+      <td class="num" style="font-weight:600">${fmt(r.total_amount)}</td>
+      <td>${MONTHS_S[r.txn_month-1]}-${r.txn_year}</td>
+      <td>
+        <button class="btn btn-sm btn-outline" onclick="viewPerforma(${r.id})">View</button>
+        <button class="btn btn-sm btn-danger" onclick="deletePerforma(${r.id})">🗑</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function viewPerforma(id) {
+  const data = await fetch(`/api/performa/${id}`).then(r=>r.json());
+  const p = data.performa;
+  const lines = data.lines;
+  const rowsHtml = lines.map(l => `
+    <tr>
+      <td>${l.job_no}</td><td style="font-size:11px">${l.invoice_no}</td>
+      <td class="num">${fmt(l.invoice_gross)}</td>
+      <td class="num">${fmt(l.pst_amount)}</td><td class="num">${fmt(l.it_amount)}</td>
+      <td class="num" style="font-weight:600;color:#10B981">${fmt(l.cheque_share)}</td>
+      <td style="font-size:11px">${l.remarks||''}</td>
+    </tr>`).join('');
+  const html = `
+    <div class="detail-info">
+      <div class="detail-info-item"><div class="detail-info-label">Performa No.</div><div class="detail-info-value">${p.performa_no}</div></div>
+      <div class="detail-info-item"><div class="detail-info-label">Cheque</div><div class="detail-info-value">${p.cheque_no} (${p.cheque_date||''})</div></div>
+      <div class="detail-info-item"><div class="detail-info-label">Total Amount</div><div class="detail-info-value">Rs. ${fmt(p.total_amount)}</div></div>
+    </div>
+    <div class="table-wrap"><table><thead><tr>
+      <th>Job</th><th>Invoice</th><th class="num">Gross</th><th class="num">PST</th><th class="num">IT</th><th class="num">Cheque Share</th><th>Remarks</th>
+    </tr></thead><tbody>${rowsHtml}</tbody></table></div>
+    <div class="modal-footer"><button class="btn btn-primary" onclick="window.print()">🖨 Print</button></div>`;
+  openModal(`🧾 ${p.performa_no}`, html, true);
+}
+
+async function deletePerforma(id) {
+  if (!await confirmDialog('Delete this Performa? This will also remove the auto-created receipt entries from each job.')) return;
+  const res = await api(`/api/performa/${id}`, 'DELETE');
+  if (res.ok) { toast('Performa deleted','success'); loadPerformaHistory(); loadChequeDropdown(); loadChequeTable(); loadReceiptTable(); }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await window.appReady;
+  buildMonthSelect('b_month', d.getMonth()+1); buildYearSelect('b_year', d.getFullYear());
+  buildMonthSelect('r_month', d.getMonth()+1); buildYearSelect('r_year', d.getFullYear());
+  buildMonthSelect('e_month', d.getMonth()+1); buildYearSelect('e_year', d.getFullYear());
+  buildMonthSelect('c_month', d.getMonth()+1); buildYearSelect('c_year', d.getFullYear());
+  buildMonthSelect('p_month', d.getMonth()+1); buildYearSelect('p_year', d.getFullYear());
+  buildMonthSelectAppend('ph_month'); buildYearSelect('ph_year', d.getFullYear());
+  document.getElementById('b_invDate').value  = d.toISOString().split('T')[0];
+  document.getElementById('r_chqDate').value  = d.toISOString().split('T')[0];
+  document.getElementById('c_chqDate').value  = d.toISOString().split('T')[0];
+  setupProjectSearch('b_projSearch','b_projId','b_projInfo');
+  setupProjectSearch('r_projSearch','r_projId','r_projInfo');
+  setupProjectSearch('e_projSearch','e_projId','e_projInfo');
+  setupProjectSearch('p_projSearch','p_projId',null);
+  document.getElementById('b_projSearch').addEventListener('projectSelected', updateInvoiceNo);
+  loadBillingTable(); loadReceiptTable(); loadExpenseTable();
+  loadChequeTable(); loadChequeDropdown(); loadPerformaHistory();
+
+  // Jump straight to the requested tab if opened via sidebar (?tab=receipt etc.)
+  const urlParams = new URLSearchParams(window.location.search);
+  const wantTab = urlParams.get('tab');
+  const tabMap = {billing:'tabBilling', receipt:'tabReceipt', expense:'tabExpense',
+                  cheques:'tabCheques', performa:'tabPerforma'};
+  if (wantTab && tabMap[wantTab]) {
+    const targetBtn = document.querySelector(`[data-tab="${tabMap[wantTab]}"]`);
+    if (targetBtn) switchEntryTab(targetBtn, tabMap[wantTab]);
+  }
+  // Highlight the matching sidebar sub-item
+  if (wantTab) {
+    document.querySelectorAll('.nav-sub').forEach(a => {
+      if (a.getAttribute('href') === `/entry?tab=${wantTab}`) a.classList.add('active');
+    });
+  }
+});
+</script>
+{% endblock %}

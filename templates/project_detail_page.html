@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Project Detail{% endblock %}
+{% block content %}
+
+<div id="projHeader" class="card" style="margin-bottom:12px"></div>
+
+<div class="filter-bar" id="periodFilterBar"></div>
+<div id="periodSummary" class="kpi-grid"></div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">📋 Complete Transaction Detail (Wide View)</span>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-gray btn-sm" onclick="printProject()">🖨 Print Preview</button>
+      <button class="btn btn-gray btn-sm" onclick="window.history.back()">← Back</button>
+    </div>
+  </div>
+  <div class="table-wrap" style="max-height:560px;overflow-y:auto;overflow-x:auto" id="wideTableWrap"></div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+const PROJECT_ID = {{ project_id }};
+let periodFilter = null;
+let projectData = null;
+
+async function loadProject() {
+  const r = await fetch(`/api/projects/${PROJECT_ID}`);
+  projectData = await r.json();
+  const p = projectData.project;
+
+  document.getElementById('projHeader').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+      <div>
+        <h2 style="color:#1565C0;font-size:18px">${p.job_no||'—'} — ${p.project_name}</h2>
+        <div style="color:#64748B;font-size:12px;margin-top:4px">
+          Ref: ${p.sheet_ref||'—'} &nbsp;|&nbsp; PM: ${p.project_manager} &nbsp;|&nbsp;
+          Client: ${p.client_name||'—'} &nbsp;|&nbsp; Group: ${p.project_group||'—'} &nbsp;|&nbsp;
+          Fee: Rs.${fmt(p.nespak_fee_mil)} M
+        </div>
+      </div>
+      <span class="badge ${p.is_active?'badge-success':'badge-danger'}">${p.is_active?'Active':'Closed'}</span>
+    </div>`;
+
+  renderPeriodSummary();
+  renderWideTable();
+}
+
+function renderPeriodSummary() {
+  const txns = projectData.transactions;
+  const params = periodFilter.getParams();
+  const period_cond = makeFilterFn(params);
+  const filtered = txns.filter(period_cond);
+
+  const billing = filtered.filter(t=>t.txn_type==='BILLING').reduce((s,t)=>s+(t.amount||0),0);
+  const receipt = filtered.filter(t=>t.txn_type==='RECEIPT').reduce((s,t)=>s+(t.amount_received||0),0);
+  const salary  = filtered.filter(t=>t.txn_type==='EXPENSE').reduce((s,t)=>s+(t.salary_actual||0),0);
+  const direct  = filtered.filter(t=>t.txn_type==='EXPENSE').reduce((s,t)=>s+(t.direct_actual||0),0);
+  const expense = salary+direct;
+  const pl = billing - expense;
+  const recv = billing - receipt;
+
+  document.getElementById('periodSummary').innerHTML = `
+    <div class="kpi-tile" style="border-left-color:#1565C0"><div class="kpi-label">Billing</div><div class="kpi-value">${cr(billing)}</div></div>
+    <div class="kpi-tile" style="border-left-color:#10B981"><div class="kpi-label">Receipt</div><div class="kpi-value">${cr(receipt)}</div></div>
+    <div class="kpi-tile" style="border-left-color:#F59E0B"><div class="kpi-label">Receivable</div><div class="kpi-value">${cr(recv)}</div></div>
+    <div class="kpi-tile" style="border-left-color:#8B5CF6"><div class="kpi-label">Salary</div><div class="kpi-value">${cr(salary)}</div></div>
+    <div class="kpi-tile" style="border-left-color:#8B5CF6"><div class="kpi-label">Direct</div><div class="kpi-value">${cr(direct)}</div></div>
+    <div class="kpi-tile" style="border-left-color:${pl<0?'#EF4444':'#10B981'}"><div class="kpi-label">P/L</div><div class="kpi-value" style="color:${pl<0?'#EF4444':'#10B981'}">${cr(pl)}</div></div>
+  `;
+}
+
+function makeFilterFn(params) {
+  const cum = params.cumulative === '1';
+  const fyStart = params.fy_start ? parseInt(params.fy_start) : null;
+  const month = params.month ? parseInt(params.month) : null;
+  const year  = params.year  ? parseInt(params.year)  : null;
+
+  return (t) => {
+    if (month && year) {
+      if (cum) {
+        const fy1 = month >= 7 ? year : year - 1;
+        const inFy = (t.txn_year > fy1 || (t.txn_year===fy1 && t.txn_month>=7));
+        const beforeEnd = (t.txn_year < year || (t.txn_year===year && t.txn_month<=month));
+        return inFy && beforeEnd;
+      } else {
+        return t.txn_month === month && t.txn_year === year;
+      }
+    }
+    if (fyStart != null) {
+      const fy2 = fyStart + 1;
+      return (t.txn_year===fyStart && t.txn_month>=7) || (t.txn_year===fy2 && t.txn_month<=6);
+    }
+    return true; // 'all'
+  };
+}
+
+function renderWideTable() {
+  const txns = projectData.transactions;
+  const params = periodFilter.getParams();
+  const filtFn = makeFilterFn(params);
+  const filtered = txns.filter(filtFn);
+
+  // group by month, merge billing/receipt/expense side by side (same logic as before)
+  const byMonth = {};
+  filtered.forEach(t => {
+    const key = `${t.txn_year}-${String(t.txn_month).padStart(2,'0')}`;
+    if (!byMonth[key]) byMonth[key] = { label:`${MONTHS_S[t.txn_month-1]}-${t.txn_year}`, billings:[], receipts:[], expenses:[] };
+    if (t.txn_type==='BILLING') byMonth[key].billings.push(t);
+    if (t.txn_type==='RECEIPT') byMonth[key].receipts.push(t);
+    if (t.txn_type==='EXPENSE') byMonth[key].expenses.push(t);
+  });
+
+  const sortedKeys = Object.keys(byMonth).sort();
+  let rowsHtml = '';
+  let cumBill=0, cumRcpt=0, cumExp=0;
+
+  sortedKeys.forEach(key => {
+    const m = byMonth[key];
+    const maxRows = Math.max(m.billings.length, m.receipts.length, m.expenses.length, 1);
+    const mBill = m.billings.reduce((s,x)=>s+(x.amount||0),0);
+    const mRcpt = m.receipts.reduce((s,x)=>s+(x.amount_received||0),0);
+    const mExp  = m.expenses.reduce((s,x)=>s+((x.salary_actual||0)+(x.direct_actual||0)),0);
+    cumBill += mBill; cumRcpt += mRcpt; cumExp += mExp;
+    const plBill = cumBill - cumExp, plRcpt = cumRcpt - cumExp;
+
+    for (let i=0; i<maxRows; i++) {
+      const b = m.billings[i], r = m.receipts[i], e = m.expenses[i];
+      const exp = e ? (e.salary_actual||0)+(e.direct_actual||0) : 0;
+      rowsHtml += `<tr>
+        <td>${i===0?`<strong>${m.label}</strong>`:''}</td>
+        <td style="font-size:11px">${b?b.invoice_no||'—':''}</td>
+        <td style="font-size:11px">${b?(b.invoice_date||'—'):''}</td>
+        <td class="num" style="color:#1565C0">${b?fmt(b.amount):''}</td>
+        <td class="num">${b?fmt(b.tax_amount):''}</td>
+        <td class="num" style="font-weight:600">${b?fmt(b.gross_amount):''}</td>
+        <td style="font-size:11px">${r?r.cheque_no||'—':''}</td>
+        <td style="font-size:11px">${r?(r.cheque_date||'—'):''}</td>
+        <td class="num">${r?fmt(r.cheque_amount):''}</td>
+        <td class="num" style="color:#10B981;font-weight:600">${r?fmt(r.amount_received):''}</td>
+        <td class="num">${e?fmt(e.salary_actual):''}</td>
+        <td class="num">${e?fmt(e.direct_actual):''}</td>
+        <td class="num" style="color:#F59E0B">${e?fmt(exp):''}</td>
+        <td class="num" style="color:${i===0&&plBill<0?'#DC2626':'#10B981'};font-weight:600">${i===0?fmt(plBill):''}</td>
+        <td class="num" style="color:${i===0&&plRcpt<0?'#DC2626':'#10B981'}">${i===0?fmt(plRcpt):''}</td>
+      </tr>`;
+    }
+  });
+
+  document.getElementById('wideTableWrap').innerHTML = `
+    <table style="min-width:1400px">
+      <thead><tr>
+        <th>Month</th><th>Invoice No.</th><th>Inv. Date</th><th class="num">Inv. Amount</th><th class="num">GST</th><th class="num">Gross</th>
+        <th>Cheque No.</th><th>Chq Date</th><th class="num">Chq Amt</th><th class="num">Amt Received</th>
+        <th class="num">Salary</th><th class="num">Direct</th><th class="num">Total Exp.</th>
+        <th class="num">P/L (Bill)</th><th class="num">P/L (Rcpt)</th>
+      </tr></thead>
+      <tbody>${rowsHtml || '<tr><td colspan="15" style="text-align:center;color:#94A3B8;padding:20px">No transactions in this period</td></tr>'}</tbody>
+    </table>`;
+}
+
+function printProject() {
+  const html = document.getElementById('wideTableWrap').innerHTML;
+  const p = projectData.project;
+  const win = window.open('', '_blank');
+  win.document.write(`<html><head><title>${p.job_no} Detail</title>
+    <style>
+      body{font-family:Arial;font-size:10px;padding:16px}
+      table{width:100%;border-collapse:collapse}
+      th{background:#1565C0;color:#fff;padding:5px 7px;font-size:9px;text-align:left}
+      td{padding:4px 7px;border-bottom:1px solid #eee;font-size:9px}
+      @media print{button{display:none}}
+    </style></head><body>
+    <button onclick="window.print()" style="padding:8px 16px;margin-bottom:10px">🖨 Print / Save PDF</button>
+    <h2 style="color:#1565C0">${p.job_no} — ${p.project_name}</h2>
+    <div style="color:#666;font-size:11px;margin-bottom:10px">PM: ${p.project_manager} | Client: ${p.client_name||'—'}</div>
+    ${html}</body></html>`);
+  win.document.close();
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await window.appReady;
+  periodFilter = buildPeriodFilter('periodFilterBar', () => { renderPeriodSummary(); renderWideTable(); }, {defaultFy: ''});
+  loadProject();
+});
+</script>
+{% endblock %}

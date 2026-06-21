@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}{{ entity_icon }} {{ entity_title }}{% endblock %}
+{% block content %}
+
+<div class="filter-bar" id="periodFilterBar"></div>
+
+<div class="filter-bar">
+  {% if entity in ('invoices','receipts','expenses') %}
+  <div class="filter-group"><span class="filter-label">PM</span><select id="f_pm" class="form-control" onchange="loadList()"></select></div>
+  <div class="filter-group"><span class="filter-label">Group</span><select id="f_grp" class="form-control" onchange="loadList()"></select></div>
+  <div class="filter-group"><span class="filter-label">Client</span><select id="f_client" class="form-control" onchange="loadList()"><option value="">All Clients</option></select></div>
+  <div class="filter-group"><span class="filter-label">Job No.</span><input id="f_job" class="form-control" placeholder="Search job no." oninput="loadList()"></div>
+  {% endif %}
+  <button class="btn btn-primary btn-sm" onclick="loadList()">🔍 Refresh</button>
+  <button class="btn btn-gray btn-sm" onclick="openPrintPreview()">🖨 Print Preview</button>
+  <button class="btn btn-gray btn-sm" onclick="exportListExcel()">📤 Export Excel</button>
+  <span style="margin-left:auto;font-size:11px;color:#94A3B8" id="periodLabelDisplay"></span>
+</div>
+
+<div class="table-wrap" style="max-height:calc(100vh - 300px);overflow-y:auto">
+  <table id="listTable">
+    <thead id="listThead"></thead>
+    <tbody id="listBody"></tbody>
+  </table>
+</div>
+<div class="totals-bar" id="listTotals" style="display:none"></div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+const ENTITY = "{{ entity }}";
+const ENTITY_TITLE = "{{ entity_title }}";
+let periodFilter = null;
+let lastRows = [];
+let lastTotals = {};
+
+// ── COLUMN DEFINITIONS PER ENTITY ─────────────────────────────────────────────
+const COLUMNS = {
+  invoices: [
+    {k:"sheet_ref", h:"Ref"}, {k:"job_no", h:"Job No."}, {k:"project_name", h:"Project"},
+    {k:"project_manager", h:"PM"}, {k:"client_name", h:"Client"},
+    {k:"period", h:"Period", fn:r=>`${MONTHS_S[r.txn_month-1]}-${r.txn_year}`},
+    {k:"invoice_no", h:"Invoice No."}, {k:"invoice_date", h:"Inv. Date"},
+    {k:"amount", h:"Amount", num:true}, {k:"tax_amount", h:"GST", num:true},
+    {k:"gross_amount", h:"Gross", num:true, bold:true},
+    {k:"attachment_name", h:"Attached", fn:r=>r.attachment_name?'📎 Yes':'—'},
+    {k:"description", h:"Note"},
+  ],
+  receipts: [
+    {k:"sheet_ref", h:"Ref"}, {k:"job_no", h:"Job No."}, {k:"project_name", h:"Project"},
+    {k:"project_manager", h:"PM"}, {k:"client_name", h:"Client"},
+    {k:"period", h:"Period", fn:r=>`${MONTHS_S[r.txn_month-1]}-${r.txn_year}`},
+    {k:"cheque_no", h:"Cheque No."}, {k:"cheque_date", h:"Chq Date"},
+    {k:"cheque_amount", h:"Chq Amount", num:true},
+    {k:"it_adjustable", h:"IT", num:true}, {k:"pra_adjustable", h:"PRA", num:true},
+    {k:"other_adjustable", h:"Other Adj.", num:true},
+    {k:"st_received", h:"ST Received", num:true}, {k:"st_deducted", h:"ST Deducted", num:true},
+    {k:"extra_st_deducted", h:"Extra ST Ded.", num:true},
+    {k:"amount_received", h:"Amt Received", num:true, bold:true},
+    {k:"attachment_name", h:"Attached", fn:r=>r.attachment_name?'📎 Yes':'—'},
+    {k:"description", h:"Note"},
+  ],
+  expenses: [
+    {k:"sheet_ref", h:"Ref"}, {k:"job_no", h:"Job No."}, {k:"project_name", h:"Project"},
+    {k:"project_manager", h:"PM"},
+    {k:"period", h:"Period", fn:r=>`${MONTHS_S[r.txn_month-1]}-${r.txn_year}`},
+    {k:"salary_actual", h:"Salary", num:true}, {k:"direct_actual", h:"Direct", num:true},
+    {k:"total", h:"Total", num:true, bold:true, fn:r=>(r.salary_actual||0)+(r.direct_actual||0)},
+    {k:"description", h:"Note"},
+  ],
+  cheques: [
+    {k:"id", h:"Sr."}, {k:"cheque_no", h:"Cheque No.", bold:true}, {k:"cheque_date", h:"Date"},
+    {k:"period", h:"Period", fn:r=>`${MONTHS_S[r.txn_month-1]}-${r.txn_year}`},
+    {k:"amount", h:"Amount", num:true}, {k:"allocated", h:"Allocated", num:true},
+    {k:"remaining", h:"Remaining", num:true, bold:true},
+    {k:"status", h:"Status", fn:r=>r.remaining<=0.5?'Fully Booked':'Open'},
+    {k:"remarks", h:"Remarks"},
+  ],
+  performa: [
+    {k:"performa_no", h:"Performa No.", bold:true}, {k:"cheque_no", h:"Cheque No."},
+    {k:"cheque_date", h:"Cheque Date"},
+    {k:"period", h:"Period", fn:r=>`${MONTHS_S[r.txn_month-1]}-${r.txn_year}`},
+    {k:"total_amount", h:"Total Amount", num:true, bold:true},
+    {k:"created_at", h:"Created"},
+  ],
+};
+
+function fmtCell(r, col) {
+  let v = col.fn ? col.fn(r) : r[col.k];
+  if (col.num) return fmt(v);
+  return (v === null || v === undefined || v === '') ? '—' : v;
+}
+
+// ── LOAD & RENDER ──────────────────────────────────────────────────────────────
+async function loadList() {
+  if (!periodFilter) return;
+  const p = periodFilter.getParams();
+  let url = `/api/list/${ENTITY}?fy_start=${p.fy_start}&month=${p.month}&year=${p.year}&cumulative=${p.cumulative}`;
+  if (document.getElementById('f_pm'))     url += `&pm=${encodeURIComponent(document.getElementById('f_pm').value)}`;
+  if (document.getElementById('f_grp'))    url += `&group=${encodeURIComponent(document.getElementById('f_grp').value)}`;
+  if (document.getElementById('f_client')) url += `&client=${encodeURIComponent(document.getElementById('f_client').value)}`;
+  if (document.getElementById('f_job'))    url += `&job=${encodeURIComponent(document.getElementById('f_job').value)}`;
+
+  const data = await api(url);
+  lastRows = data.rows; lastTotals = data.totals;
+  document.getElementById('periodLabelDisplay').textContent = `Showing: ${data.period_label}`;
+  renderTable();
+}
+
+function renderTable() {
+  const cols = COLUMNS[ENTITY];
+  const thead = document.getElementById('listThead');
+  thead.innerHTML = '<tr>' + cols.map(c => `<th class="${c.num?'num':''}">${c.h}</th>`).join('') + '</tr>';
+
+  const tbody = document.getElementById('listBody');
+  tbody.innerHTML = '';
+  lastRows.forEach(r => {
+    const tr = document.createElement('tr');
+    if (ENTITY === 'receipts') tr.classList.add('receipt-row');
+    if (ENTITY === 'expenses') tr.classList.add('expense-row');
+    tr.innerHTML = cols.map(c => {
+      const v = fmtCell(r, c);
+      const style = c.bold ? 'font-weight:600;color:#1565C0' : '';
+      return `<td class="${c.num?'num':''}" style="${style}">${v}</td>`;
+    }).join('');
+    tbody.appendChild(tr);
+  });
+
+  // totals bar
+  const bar = document.getElementById('listTotals');
+  bar.style.display = 'flex';
+  let html = `<span>Records: <strong>${lastTotals.count||0}</strong></span>`;
+  Object.entries(lastTotals).forEach(([k,v]) => {
+    if (k === 'count') return;
+    html += `<span>${k.replace(/_/g,' ')}: <strong>${cr(v)}</strong></span>`;
+  });
+  bar.innerHTML = html;
+}
+
+// ── PRINT PREVIEW ──────────────────────────────────────────────────────────────
+function openPrintPreview() {
+  const cols = COLUMNS[ENTITY];
+  const p = periodFilter.getParams();
+  const win = window.open('', '_blank');
+  const rowsHtml = lastRows.map(r => '<tr>' + cols.map(c => {
+    const v = fmtCell(r, c);
+    return `<td style="${c.num?'text-align:right':''}">${v}</td>`;
+  }).join('') + '</tr>').join('');
+
+  let totalsHtml = '<tr style="font-weight:700;background:#f0f0f0">';
+  totalsHtml += `<td colspan="1">TOTAL (${lastTotals.count||0} records)</td>`;
+  totalsHtml += cols.slice(1).map(c => {
+    if (!c.num) return '<td></td>';
+    const key = c.k;
+    const tot = lastRows.reduce((s,r) => s + (parseFloat(fmtCell(r,c).replace(/,/g,''))||0), 0);
+    return `<td style="text-align:right">${fmt(tot)}</td>`;
+  }).join('');
+  totalsHtml += '</tr>';
+
+  win.document.write(`
+    <html><head><title>${ENTITY_TITLE} — Print Preview</title>
+    <style>
+      body{font-family:Arial,sans-serif;font-size:11px;padding:20px}
+      h1{font-size:16px;color:#1565C0;margin-bottom:2px}
+      .sub{color:#666;font-size:11px;margin-bottom:14px}
+      table{width:100%;border-collapse:collapse}
+      th{background:#1565C0;color:#fff;padding:6px 8px;text-align:left;font-size:10px}
+      td{padding:5px 8px;border-bottom:1px solid #eee;font-size:10px}
+      tr:nth-child(even){background:#f8fafc}
+      @media print { button{display:none} }
+    </style></head><body>
+    <button onclick="window.print()" style="padding:8px 16px;margin-bottom:12px">🖨 Print / Save as PDF</button>
+    <h1>NESPAK — Construction Management Division</h1>
+    <div class="sub">${ENTITY_TITLE} &nbsp;|&nbsp; Period: ${document.getElementById('periodLabelDisplay').textContent.replace('Showing: ','')}</div>
+    <table><thead><tr>${cols.map(c=>`<th>${c.h}</th>`).join('')}</tr></thead>
+    <tbody>${rowsHtml}${totalsHtml}</tbody></table>
+    </body></html>`);
+  win.document.close();
+}
+
+// ── EXCEL EXPORT ───────────────────────────────────────────────────────────────
+function exportListExcel() {
+  const p = periodFilter.getParams();
+  let url = `/api/export/list?entity=${ENTITY}&fy_start=${p.fy_start}&month=${p.month}&year=${p.year}&cumulative=${p.cumulative}`;
+  if (document.getElementById('f_pm'))     url += `&pm=${encodeURIComponent(document.getElementById('f_pm').value)}`;
+  if (document.getElementById('f_grp'))    url += `&group=${encodeURIComponent(document.getElementById('f_grp').value)}`;
+  if (document.getElementById('f_client')) url += `&client=${encodeURIComponent(document.getElementById('f_client').value)}`;
+  if (document.getElementById('f_job'))    url += `&job=${encodeURIComponent(document.getElementById('f_job').value)}`;
+  window.location = url;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await window.appReady;
+  periodFilter = buildPeriodFilter('periodFilterBar', loadList);
+  if (document.getElementById('f_pm'))  buildPMSelect('f_pm');
+  if (document.getElementById('f_grp')) buildGroupSelect('f_grp');
+  if (document.getElementById('f_client')) {
+    fetch('/api/clients').then(r=>r.json()).then(clients => {
+      const sel = document.getElementById('f_client');
+      clients.forEach(c => { const o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o); });
+    });
+  }
+  loadList();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,149 @@
+NESPAK PROJECT MONITORING SYSTEM — WEB VERSION
+================================================
+Setup & User Guide (v3.1)
+
+
+===================================================
+QUICK ANSWER TO YOUR QUESTIONS
+===================================================
+
+Q: "Site can't be reached" error?
+A: The server isn't running. You must run START_NESPAK.bat
+   and KEEP THAT WINDOW OPEN. Closing it stops the website.
+
+Q: Can I get an EXE / one-click file?
+A: Yes — use START_NESPAK.bat (included in this folder).
+   Just double-click it. It starts the server AND opens
+   your browser automatically.
+
+Q: Do I have to repeat the whole install every time?
+A: NO. The pip install / package setup is ONE TIME ONLY.
+   After that, every day you just double-click
+   START_NESPAK.bat — that's it.
+
+===================================================
+
+
+WHAT THIS IS
+------------
+A web app that runs on your laptop. You open it in Chrome/Edge
+like a website, but it works completely offline. Your database
+is one file on your laptop (nespak_pms.db).
+
+Two people can use it — one Admin (full access), one Guest
+(view/print/export only) — on the same or different computers
+on the same network.
+
+
+═══════════════════════════════════════════════════════════
+PART 1 — ONE-TIME SETUP (do this only ONCE)
+═══════════════════════════════════════════════════════════
+
+STEP 1 — Extract the ZIP file
+  Extract NESPAK_WEB_v1.0.zip to:  C:\NESPAK\nespak_web\
+
+STEP 2 — Install required packages (one time only)
+  1. Press Win + R, type cmd, press Enter
+  2. Type:
+       cd C:\NESPAK\nespak_web
+  3. Then type:
+       pip install flask openpyxl
+  4. Wait for "Successfully installed..." message
+  5. Close this window
+
+  (You will NOT need to do this again, ever — unless you
+   move the folder to a different computer.)
+
+STEP 3 — Import your Excel data (optional, one time)
+  1. Copy your .xlsm file into C:\NESPAK\nespak_web\
+  2. Double-click... actually run in cmd:
+       cd C:\NESPAK\nespak_web
+       python import_from_excel.py
+  3. Wait for "Import complete!"
+
+
+═══════════════════════════════════════════════════════════
+PART 2 — DAILY USE (every time you want to use it)
+═══════════════════════════════════════════════════════════
+
+JUST ONE STEP:
+
+  Double-click:  START_NESPAK.bat
+
+This automatically:
+  ✓ Starts the server
+  ✓ Opens your browser
+  ✓ Shows you the login page
+
+A black window will open and STAY OPEN — this is normal,
+it's the server running. Minimize it, don't close it.
+
+Login:
+  Admin password: admin123
+  Guest password: guest123
+
+
+TO STOP THE SERVER
+-------------------
+Close the black "NESPAK PMS Server" window
+(or click inside it and press Ctrl+C)
+
+
+═══════════════════════════════════════════════════════════
+PART 3 — SECOND COMPUTER (Guest Access)
+═══════════════════════════════════════════════════════════
+
+Requirements: Both computers on the SAME WiFi/network.
+
+ON THE ADMIN COMPUTER (the one running START_NESPAK.bat):
+  Look at the black server window. It shows something like:
+      Other computer: http://192.168.1.50:5000
+  Note that IP address (e.g. 192.168.1.50)
+
+ON THE SECOND COMPUTER:
+  Option A: Just open Chrome/Edge and type:
+      http://192.168.1.50:5000
+  (replace with the actual IP from the admin computer)
+
+  Option B: Double-click OPEN_FOR_GUEST.bat and enter
+  the IP address when asked.
+
+  Login with Guest password: guest123
+
+
+═══════════════════════════════════════════════════════════
+TROUBLESHOOTING
+═══════════════════════════════════════════════════════════
+
+"This site can't be reached"
+  → START_NESPAK.bat is not running, or was closed.
+  → Double-click it again and wait 5 seconds.
+
+"python is not recognized"
+  → Python not installed or not in PATH.
+  → Reinstall Python, CHECK "Add Python to PATH" during setup.
+
+Double-clicking .bat does nothing / closes instantly
+  → Right-click → Run as Administrator
+  → Or open cmd, cd to the folder, type: START_NESPAK.bat
+
+Second computer can't connect
+  → Both must be on same WiFi (not mobile data / different networks)
+  → Windows Firewall popup → click "Allow access"
+  → Double check the IP address is correct
+
+Want to change passwords?
+  → Login as Admin → Settings → Passwords tab
+
+
+═══════════════════════════════════════════════════════════
+FILES IN THIS FOLDER
+═══════════════════════════════════════════════════════════
+START_NESPAK.bat        ← DOUBLE-CLICK THIS daily (Admin)
+OPEN_FOR_GUEST.bat       ← Double-click on 2nd computer (Guest)
+run.py                   ← Server code (started by .bat)
+app.py                   ← Application logic
+import_from_excel.py     ← One-time Excel data import
+nespak_pms.db            ← Your database (auto-created)
+templates/, static/      ← Web pages, styles, scripts
+exports/                 ← Excel exports saved here
