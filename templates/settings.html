@@ -97,20 +97,18 @@
 
 <!-- TAX RATES -->
 <div id="stTax" class="tab-panel">
-  <div class="card" style="max-width:500px">
-    <div class="card-header"><span class="card-title">Tax Rates</span></div>
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">💸 Tax Rates</span>
+      <button class="btn btn-primary btn-sm" onclick="openAddTax()">➕ Add Tax Rate</button>
+    </div>
     <p style="color:#64748B;font-size:12px;margin-bottom:12px">Current tax rates configured in the system.</p>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Tax Name</th><th class="num">Rate %</th></tr></thead>
-        <tbody>
-          {% for name, rate in [('PST Punjab 16%', 16), ('PST Sindh 15%', 15), ('PST KPK 15%', 15), ('PST Balochistan 15%', 15), ('GST Federal 18%', 18), ('Exempt 0%', 0)] %}
-          <tr><td>{{ name }}</td><td class="num">{{ rate }}%</td></tr>
-          {% endfor %}
-        </tbody>
+        <thead><tr><th>Tax Name</th><th class="num">Rate %</th><th></th></tr></thead>
+        <tbody id="taxRatesBody"></tbody>
       </table>
     </div>
-    <p style="color:#94A3B8;font-size:11px;margin-top:12px">To add/change tax rates, edit <code>TAX_RATES</code> in <strong>app.py</strong> and restart.</p>
   </div>
 </div>
 
@@ -201,6 +199,7 @@ function openEditPM(pm) {
     <p style="font-size:11px;color:#94A3B8">Note: renaming here only changes future bookings. Past projects/transactions keep their original PM name.</p>
     <div class="modal-footer">
       <button class="btn btn-gray" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="deletePM(${pm.id})">🗑 Delete</button>
       <button class="btn btn-primary" onclick="savePM(${pm.id})">💾 Save</button>
     </div>`);
 }
@@ -215,6 +214,13 @@ async function savePM(id) {
   if (!d.full_name) { toast('Name is required','error'); return; }
   const res = id ? await api(`/api/pms/master/${id}`,'PUT',d) : await api('/api/pms/master','POST',d);
   if (res.ok) { toast('Saved!','success'); closeModal(); loadPMMaster(); }
+  else toast(res.error||'Error','error');
+}
+
+async function deletePM(id) {
+  if (!await confirmDialog('Are you sure you want to delete this Project Manager?\\n\\nThis will NOT delete projects or transactions already linked to this PM, but the PM will no longer appear in dropdowns for new entries.')) return;
+  const res = await api(`/api/pms/master/${id}`, 'DELETE');
+  if (res.ok) { toast('PM deleted!','success'); closeModal(); loadPMMaster(); }
   else toast(res.error||'Error','error');
 }
 
@@ -246,6 +252,66 @@ async function loadClientMaster() {
   });
 }
 
+// ── TAX RATES (master table) ────────────────────────────────────────────────────
+async function loadTaxRatesMaster() {
+  const rows = await fetch('/api/tax_rates/master').then(r=>r.json());
+  const tbody = document.getElementById('taxRatesBody');
+  tbody.innerHTML = '';
+  rows.forEach(tr => {
+    const row = document.createElement('tr');
+    row.innerHTML = `<td style="font-weight:600">${tr.tax_name}</td>
+      <td class="num">${tr.rate_percent}%</td>
+      <td><span class="badge ${tr.is_active?'badge-success':'badge-danger'}">${tr.is_active?'Active':'Inactive'}</span></td>
+      <td><button class="btn btn-sm btn-outline" onclick='openEditTax(${JSON.stringify(tr)})'>✏️ Edit</button></td>`;
+    tbody.appendChild(row);
+  });
+}
+
+function openAddTax() {
+  openModal('➕ Add Tax Rate', `
+    <div class="form-group"><label class="form-label">Tax Name *</label><input id="tax_name" class="form-control"></div>
+    <div class="form-group"><label class="form-label">Rate % *</label><input id="tax_rate" type="number" step="0.01" class="form-control"></div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTax(null)">💾 Save</button>
+    </div>`);
+}
+
+function openEditTax(tr) {
+  openModal('✏️ Edit Tax Rate', `
+    <div class="form-group"><label class="form-label">Tax Name *</label><input id="tax_name" class="form-control" value="${tr.tax_name}"></div>
+    <div class="form-group"><label class="form-label">Rate % *</label><input id="tax_rate" type="number" step="0.01" class="form-control" value="${tr.rate_percent}"></div>
+    <div class="form-group"><label class="form-label">Status</label>
+      <select id="tax_active" class="form-control">
+        <option value="1" ${tr.is_active?'selected':''}>Active</option>
+        <option value="0" ${!tr.is_active?'selected':''}>Inactive</option>
+      </select></div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="deleteTax(${tr.id})">🗑 Delete</button>
+      <button class="btn btn-primary" onclick="saveTax(${tr.id})">💾 Save</button>
+    </div>`);
+}
+
+async function saveTax(id) {
+  const d = {
+    tax_name: document.getElementById('tax_name').value.trim(),
+    rate_percent: parseFloat(document.getElementById('tax_rate').value || 0),
+    is_active: document.getElementById('tax_active')?.value ?? 1,
+  };
+  if (!d.tax_name) { toast('Tax name is required','error'); return; }
+  const res = id ? await api(`/api/tax_rates/master/${id}`,'PUT',d) : await api('/api/tax_rates/master','POST',d);
+  if (res.ok) { toast('Saved!','success'); closeModal(); loadTaxRatesMaster(); }
+  else toast(res.error||'Error','error');
+}
+
+async function deleteTax(id) {
+  if (!await confirmDialog('Are you sure you want to delete this Tax Rate?\\n\\nThis will NOT affect existing transactions, but the tax rate will no longer appear in dropdowns for new entries.')) return;
+  const res = await api(`/api/tax_rates/master/${id}`, 'DELETE');
+  if (res.ok) { toast('Tax rate deleted!','success'); closeModal(); loadTaxRatesMaster(); }
+  else toast(res.error||'Error','error');
+}
+
 function openAddClient() {
   openModal('➕ Add Client', `
     <div class="form-group"><label class="form-label">Full Name *</label><input id="cl_name" class="form-control"></div>
@@ -270,6 +336,7 @@ function openEditClient(cl) {
     <p style="font-size:11px;color:#94A3B8">Note: renaming here only changes future bookings. Past projects/invoices keep their original client name.</p>
     <div class="modal-footer">
       <button class="btn btn-gray" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="deleteClient(${cl.id})">🗑 Delete</button>
       <button class="btn btn-primary" onclick="saveClient(${cl.id})">💾 Save</button>
     </div>`);
 }
@@ -284,6 +351,13 @@ async function saveClient(id) {
   if (!d.full_name) { toast('Name is required','error'); return; }
   const res = id ? await api(`/api/clients/master/${id}`,'PUT',d) : await api('/api/clients/master','POST',d);
   if (res.ok) { toast('Saved!','success'); closeModal(); loadClientMaster(); }
+  else toast(res.error||'Error','error');
+}
+
+async function deleteClient(id) {
+  if (!await confirmDialog('Are you sure you want to delete this Client?\\n\\nThis will NOT delete projects or transactions already linked to this Client, but the Client will no longer appear in dropdowns for new entries.')) return;
+  const res = await api(`/api/clients/master/${id}`, 'DELETE');
+  if (res.ok) { toast('Client deleted!','success'); closeModal(); loadClientMaster(); }
   else toast(res.error||'Error','error');
 }
 
@@ -335,6 +409,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadSettings();
     loadPMMaster();
     loadClientMaster();
+    loadTaxRatesMaster();
   }
 });
 </script>
