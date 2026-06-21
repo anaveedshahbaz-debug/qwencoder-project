@@ -260,21 +260,26 @@
 <div class="card">
   <div class="card-header"><span class="card-title">📑 New Cheque Entry</span></div>
 
-  <div class="form-row form-row-2">
+  <div class="form-row form-row-3">
     <div class="form-group"><label class="form-label">Month *</label><select id="c_month" class="form-control"></select></div>
     <div class="form-group"><label class="form-label">Year *</label><select id="c_year" class="form-control"></select></div>
+    <div class="form-group"><label class="form-label">FY</label><select id="c_fy" class="form-control"></select></div>
   </div>
   <div class="form-group">
     <label class="form-label">Client Name *</label>
-    <input type="text" id="c_client" class="form-control" placeholder="Client name">
+    <select id="c_client" class="form-control"><option value="">-- Select Client --</option></select>
   </div>
   <div class="form-group">
-    <label class="form-label">Bank Name</label>
-    <input type="text" id="c_bank" class="form-control" placeholder="Bank name">
+    <label class="form-label">Bank Name *</label>
+    <select id="c_bank" class="form-control"><option value="">-- Select Bank --</option></select>
   </div>
   <div class="form-group">
     <label class="form-label">Memo No.</label>
-    <input type="text" id="c_memo" class="form-control" placeholder="Memo number">
+    <input type="text" id="c_memo" class="form-control" placeholder="Auto-generated with prefix" readonly>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Memo Date</label>
+    <input type="date" id="c_memo_date" class="form-control">
   </div>
   <div class="form-group">
     <label class="form-label">Client Cheque No. *</label>

@@ -155,6 +155,14 @@ def init_db():
             updated_at TEXT DEFAULT (date('now'))
         );
 
+        CREATE TABLE IF NOT EXISTS banks_master (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bank_name TEXT NOT NULL UNIQUE,
+            is_active INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT (date('now')),
+            updated_at TEXT DEFAULT (date('now'))
+        );
+
         CREATE TABLE IF NOT EXISTS cheques (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             cheque_no TEXT NOT NULL,
@@ -227,7 +235,7 @@ def init_db():
             except: pass
         for col, defn in [
             ("client_name","TEXT"), ("bank_name","TEXT"), ("memo_no","TEXT"),
-            ("attachment_path","TEXT"),
+            ("attachment_path","TEXT"), ("memo_date","TEXT"), ("fy","TEXT"),
         ]:
             try: c.execute(f"ALTER TABLE cheques ADD COLUMN {col} {defn}")
             except: pass
@@ -1412,11 +1420,11 @@ def api_cheques_create():
     if session.get("role") != "admin":
         return jsonify({"error":"Admin only"}), 403
     d = request.get_json()
-    cid = execute("""INSERT INTO cheques (cheque_no,cheque_date,amount,client_name,bank_name,memo_no,remarks,txn_month,txn_year,attachment_path)
-        VALUES (?,?,?,?,?,?,?,?,?,?)""",
+    cid = execute("""INSERT INTO cheques (cheque_no,cheque_date,amount,client_name,bank_name,memo_no,memo_date,remarks,txn_month,txn_year,fy,attachment_path)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
         (d.get("cheque_no"), d.get("cheque_date"), float(d.get("amount") or 0),
-         d.get("client_name"), d.get("bank_name"), d.get("memo_no"),
-         d.get("remarks"), int(d.get("month")), int(d.get("year")),
+         d.get("client_name"), d.get("bank_name"), d.get("memo_no"), d.get("memo_date"),
+         d.get("remarks"), int(d.get("month")), int(d.get("year")), d.get("fy"),
          d.get("attachment_path")))
     return jsonify({"ok": True, "id": cid})
 
@@ -1428,7 +1436,7 @@ def api_cheques_update(cid):
     d = request.get_json()
     fields = []
     params = []
-    for k in ["cheque_no", "cheque_date", "amount", "client_name", "bank_name", "memo_no", "remarks", "attachment_path"]:
+    for k in ["cheque_no", "cheque_date", "amount", "client_name", "bank_name", "memo_no", "memo_date", "remarks", "fy", "attachment_path"]:
         if k in d:
             fields.append(f"{k}=?")
             params.append(d[k] if k != "amount" else float(d[k] or 0))
