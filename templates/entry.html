@@ -1027,17 +1027,24 @@ async function addJobToPerforma() {
   if (!pid) { toast('Please select a project / job','error'); return; }
   if (!performaChequeData) { toast('Please select a cheque first','error'); return; }
 
+  console.log('Adding job, project_id:', pid);
+
   // fetch pending (unpaid) invoices for this project
   const pending = await fetch(`/api/performa/pending_invoices?project_id=${pid}`).then(r=>r.json());
+  console.log('Pending invoices:', pending);
+  
   if (pending.length === 0) {
     toast('No pending invoices for this job — all invoices already fully received.', 'warning');
     return;
   }
 
   const projInfo = _allProjects.find(p => p.id == pid);
-  
+  console.log('Project info:', projInfo);
+
   // Filter out invoices already added
   const availableInvoices = pending.filter(inv => !performaLines.find(l => l.invoice_txn_id === inv.id));
+  console.log('Available invoices:', availableInvoices);
+  
   if (availableInvoices.length === 0) {
     toast('All invoices for this job are already added.', 'info');
     return;
@@ -1054,14 +1061,24 @@ async function addJobToPerforma() {
       </select>
     </div>
   `;
+
+  const confirmed = await showDialog('Select Invoice', invoiceSelectHtml, ['Cancel', 'Add']);
+  console.log('Dialog confirmed:', confirmed);
   
-  if (!await showDialog('Select Invoice', invoiceSelectHtml, ['Cancel', 'Add'])) {
+  if (!confirmed) {
     return;
   }
-  
+
   const selectedInvId = document.getElementById('invoiceSelectDialog').value;
+  console.log('Selected invoice ID:', selectedInvId);
+  
   const selectedInv = availableInvoices.find(inv => inv.id == selectedInvId);
-  if (!selectedInv) return;
+  if (!selectedInv) {
+    console.error('Invoice not found');
+    return;
+  }
+
+  console.log('Adding line:', selectedInv);
 
   performaLines.push({
     project_id: pid,
@@ -1236,7 +1253,7 @@ function renderTable1() {
     jobGroups[key].push({...l, origIdx: idx});
   });
   
-  let rowIdx = 0;
+  let displayRowIdx = 0;
   Object.keys(jobGroups).forEach(jobNo => {
     const invoices = jobGroups[jobNo];
     
@@ -1252,25 +1269,25 @@ function renderTable1() {
       tr.innerHTML = `
         <td ${isLastInv ? `rowspan="${invoices.length}"` : ''} style="font-weight:600;color:#1565C0">${jobNo}</td>
         <td style="font-size:11px">${inv.invoice_no}<br><span style="color:#94A3B8">Bal: ${fmt(fullBal)}</span></td>
-        <td><input class="form-control" style="font-size:11px;padding:4px" value="${inv.client_name||''}" onchange="updateTable1Field(${rowIdx},'client_name',this.value)"></td>
+        <td><input class="form-control" style="font-size:11px;padding:4px" value="${inv.client_name||''}" onchange="updateTable1Field(${inv.origIdx},'client_name',this.value)"></td>
         <td class="num">${fmt(inv.invoice_amount)}<br><small style="color:#64748B">(${fmt(fullBal)})</small></td>
         <td class="num">${fmt(inv.invoice_tax)}<br><small style="color:#64748B">(${fmt(salesBal)})</small></td>
         <td class="num" style="font-weight:600">${fmt(inv.invoice_gross)}<br><small style="color:#64748B">(${fmt(grossBal)})</small></td>
-        <td style="background:#FEF3C7"><input type="number" class="form-control t1-it" style="font-size:11px;padding:4px;width:80px" value="${inv.it_amount||0}" onchange="updateTable1Field(${rowIdx},'it_amount',parseFloat(this.value)||0)"></td>
-        <td style="background:#FEF3C7"><input type="number" class="form-control t1-pra" style="font-size:11px;padding:4px;width:80px" value="${inv.pra_amount||0}" onchange="updateTable1Field(${rowIdx},'pra_amount',parseFloat(this.value)||0)"></td>
-        <td style="background:#FEF3C7"><input type="number" class="form-control t1-oadj" style="font-size:11px;padding:4px;width:80px" value="${inv.other_adj||0}" onchange="updateTable1Field(${rowIdx},'other_adj',parseFloat(this.value)||0)"></td>
+        <td style="background:#FEF3C7"><input type="number" class="form-control t1-it" style="font-size:11px;padding:4px;width:80px" value="${inv.it_amount||0}" onchange="updateTable1Field(${inv.origIdx},'it_amount',parseFloat(this.value)||0)"></td>
+        <td style="background:#FEF3C7"><input type="number" class="form-control t1-pra" style="font-size:11px;padding:4px;width:80px" value="${inv.pra_amount||0}" onchange="updateTable1Field(${inv.origIdx},'pra_amount',parseFloat(this.value)||0)"></td>
+        <td style="background:#FEF3C7"><input type="number" class="form-control t1-oadj" style="font-size:11px;padding:4px;width:80px" value="${inv.other_adj||0}" onchange="updateTable1Field(${inv.origIdx},'other_adj',parseFloat(this.value)||0)"></td>
         <td style="background:#FEF3C7;font-weight:700" class="t1-total-adj">${fmt((inv.it_amount||0)+(inv.pra_amount||0)+(inv.other_adj||0))}</td>
-        <td style="background:#FFE4E6"><input type="number" class="form-control t1-sded" style="font-size:11px;padding:4px;width:80px" value="${inv.st_deducted||0}" onchange="updateTable1Field(${rowIdx},'st_deducted',parseFloat(this.value)||0)"></td>
-        <td style="background:#FFE4E6"><input type="number" class="form-control t1-srcv" style="font-size:11px;padding:4px;width:80px" value="${inv.st_received||0}" onchange="updateTable1Field(${rowIdx},'st_received',parseFloat(this.value)||0)"></td>
-        <td style="background:#FFE4E6"><input type="number" class="form-control t1-estd" style="font-size:11px;padding:4px;width:80px" value="${inv.extra_st_deducted||0}" onchange="updateTable1Field(${rowIdx},'extra_st_deducted',parseFloat(this.value)||0)"></td>
-        <td style="background:#FFE4E6"><input type="number" class="form-control t1-oded" style="font-size:11px;padding:4px;width:80px" value="${inv.other_non_adj||0}" onchange="updateTable1Field(${rowIdx},'other_non_adj',parseFloat(this.value)||0)"></td>
+        <td style="background:#FFE4E6"><input type="number" class="form-control t1-sded" style="font-size:11px;padding:4px;width:80px" value="${inv.st_deducted||0}" onchange="updateTable1Field(${inv.origIdx},'st_deducted',parseFloat(this.value)||0)"></td>
+        <td style="background:#FFE4E6"><input type="number" class="form-control t1-srcv" style="font-size:11px;padding:4px;width:80px" value="${inv.st_received||0}" onchange="updateTable1Field(${inv.origIdx},'st_received',parseFloat(this.value)||0)"></td>
+        <td style="background:#FFE4E6"><input type="number" class="form-control t1-estd" style="font-size:11px;padding:4px;width:80px" value="${inv.extra_st_deducted||0}" onchange="updateTable1Field(${inv.origIdx},'extra_st_deducted',parseFloat(this.value)||0)"></td>
+        <td style="background:#FFE4E6"><input type="number" class="form-control t1-oded" style="font-size:11px;padding:4px;width:80px" value="${inv.other_non_adj||0}" onchange="updateTable1Field(${inv.origIdx},'other_non_adj',parseFloat(this.value)||0)"></td>
         <td style="background:#DBEAFE;font-weight:600">${fmt(performaChequeData?.remaining||0)}</td>
         <td style="background:#DCFCE7;font-weight:700" class="t1-amt-rcvd">${fmt(calcAmountReceived(inv))}</td>
-        <td><input class="form-control" style="font-size:11px;padding:4px;width:100px" value="${inv.remarks||''}" onchange="updateTable1Field(${rowIdx},'remarks',this.value)"></td>
+        <td><input class="form-control" style="font-size:11px;padding:4px;width:100px" value="${inv.remarks||''}" onchange="updateTable1Field(${inv.origIdx},'remarks',this.value)"></td>
         ${invIdx === invoices.length - 1 ? `<td ${`rowspan="${invoices.length}"`}><button class="btn btn-danger btn-sm" onclick="removePerformaLine(${inv.origIdx})">🗑</button></td>` : ''}
       `;
       tbody.appendChild(tr);
-      rowIdx++;
+      displayRowIdx++;
     });
   });
   
