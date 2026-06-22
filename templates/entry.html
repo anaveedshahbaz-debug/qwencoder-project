@@ -357,64 +357,32 @@
     <div class="calc-item"><div class="calc-label">Available Balance</div><div class="calc-value" style="color:#10B981" id="p_chqRemainDisplay">Rs. 0.00</div></div>
   </div>
 
-  <!-- STEP 4: Cheque-Level Deductions Section -->
-  <h4 style="margin-top:20px;margin-bottom:10px;color:#1565C0">📊 Step 4: Enter Cheque-Level Deductions (Applied Once to Complete Cheque)</h4>
-  <div class="two-col" style="align-items:start">
-  <div class="card" style="flex:1;background:#FEF3C7;border-color:#FCD34D">
-    <div class="card-header" style="background:#FDE68A"><span class="card-title">➕ Adjustable Deductions</span></div>
-    <div class="form-row form-row-3">
-      <div class="form-group"><label class="form-label">Income Tax Deducted</label><input type="number" id="p_it_deducted" class="form-control" step="0.01" value="0" onchange="updateChequeLevelDeductions()"></div>
-      <div class="form-group"><label class="form-label">PRA Fee</label><input type="number" id="p_pra_fee" class="form-control" step="0.01" value="0" onchange="updateChequeLevelDeductions()"></div>
-      <div class="form-group"><label class="form-label">Other Adjustable</label><input type="number" id="p_other_adj" class="form-control" step="0.01" value="0" onchange="updateChequeLevelDeductions()"></div>
-    </div>
-  </div>
-  <div class="card" style="flex:1;background:#FFE4E6;border-color:#FECDD3">
-    <div class="card-header" style="background:#FECDD3"><span class="card-title">➖ Non-Adjustable Deductions</span></div>
-    <div class="form-row form-row-3">
-      <div class="form-group"><label class="form-label">Sales Tax Deducted</label><input type="number" id="p_st_deducted" class="form-control" step="0.01" value="0" onchange="updateChequeLevelDeductions()"></div>
-      <div class="form-group"><label class="form-label">Sales Tax Received From Client</label><input type="number" id="p_st_received" class="form-control" step="0.01" value="0" onchange="updateChequeLevelDeductions()"></div>
-      <div class="form-group"><label class="form-label">Extra Sales Tax Deduction</label><input type="number" id="p_extra_st" class="form-control" step="0.01" value="0" onchange="updateChequeLevelDeductions()"></div>
-    </div>
-    <div class="form-row form-row-2">
-      <div class="form-group"><label class="form-label">Other Deduction</label><input type="number" id="p_other_ded" class="form-control" step="0.01" value="0" onchange="updateChequeLevelDeductions()"></div>
-    </div>
-  </div>
+  <!-- TABLE 1: Job/Invoice Selection with Per-Row Deductions -->
+  <h4 style="margin-top:20px;margin-bottom:10px;color:#1565C0">📝 Table 1: Select Jobs & Invoices, Enter Deductions Per Row</h4>
+  <div style="margin-top:12px;margin-bottom:12px;font-size:12px;color:#64748B">
+    💡 <strong>How to use:</strong> 
+    <span style="margin-left:8px">1️⃣ Select Job from first column</span>
+    <span style="margin-left:8px">2️⃣ Select Invoice from second column</span>
+    <span style="margin-left:8px">3️⃣ ➕ Add more invoices of same job</span>
+    <span style="margin-left:8px">4️⃣ ➕➕ Add another job</span>
+    <span style="margin-left:8px">5️⃣ Enter deduction values for each row</span>
   </div>
 
-  <div class="calc-box" style="margin-top:12px;background:#DBEAFE;border-color:#BFDBFE">
-    <div class="calc-item"><div class="calc-label">Amount Received (Auto-Calculated)</div><div class="calc-value" id="p_amtReceived" style="font-size:20px;font-weight:700;color:#1E40AF">Rs. 0.00</div></div>
-    <div class="calc-item" style="font-size:11px;color:#64748B">Formula: Cheque Amount + Adjustable Deductions - Sales Tax Received From Client</div>
-  </div>
-
-  <!-- STEP 5: Add Jobs Section -->
-  <h4 style="margin-top:20px;margin-bottom:10px;color:#1565C0">📝 Step 5: Select Jobs (Invoices Load Automatically)</h4>
-  <div style="margin-top:12px">
-    <label class="form-label">Add Job to this Performa</label>
-    <div style="display:flex;gap:8px;align-items:flex-end">
-      <div style="flex:1">
-        <input type="text" id="p_projSearch" class="form-control" placeholder="Type Job No. or Project Name...">
-        <input type="hidden" id="p_projId">
-      </div>
-      <button class="btn btn-primary btn-sm" onclick="addJobToPerforma()">➕ Add Job</button>
-    </div>
-  </div>
-
-  <!-- TABLE 1: Merged Deductions Summary -->
-  <h4 style="margin-top:20px;margin-bottom:10px;color:#1565C0">📊 Table 1: Invoice Selection & Merged Deductions Summary</h4>
+  <!-- TABLE 1: Job/Invoice Selection with Per-Row Deductions -->
+  <h4 style="margin-top:20px;margin-bottom:10px;color:#1565C0">📊 Table 1: Invoice Selection & Deductions Entry</h4>
   <div class="table-wrap" style="overflow-x:auto">
-    <table style="min-width:1600px" id="performaTable1">
+    <table style="min-width:1800px" id="performaTable1">
       <thead>
         <tr>
-          <th rowspan="2">Job No.</th>
-          <th rowspan="2">Invoice</th>
+          <th rowspan="2" style="min-width:150px">Job No. <button class="btn btn-primary btn-sm" style="font-size:9px;padding:2px 6px;margin-left:4px" onclick="addNewJobRow()" title="Add new job">➕➕ Job</button></th>
+          <th rowspan="2" style="min-width:180px">Invoice <button class="btn btn-primary btn-sm" style="font-size:9px;padding:2px 6px;margin-left:4px" onclick="addAnotherInvoiceToCurrentJob()" title="Add another invoice of same job">➕ Inv</button></th>
           <th rowspan="2" style="min-width:140px">Client</th>
-          <th rowspan="2">Full Amount<br><small style="font-weight:normal;color:#64748B">(Balance)</small></th>
-          <th rowspan="2">Full Sales<br><small style="font-weight:normal;color:#64748B">(Balance)</small></th>
-          <th rowspan="2">Full Gross<br><small style="font-weight:normal;color:#64748B">(Balance)</small></th>
+          <th rowspan="2">Invoice Amount<br><small style="font-weight:normal;color:#64748B">(Balance)</small></th>
+          <th rowspan="2">Sales Tax<br><small style="font-weight:normal;color:#64748B">(Balance)</small></th>
+          <th rowspan="2">Gross Amount<br><small style="font-weight:normal;color:#64748B">(Balance)</small></th>
           <th colspan="4" style="background:#FEF3C7;border:1px solid #FCD34D">Adjustable Deductions</th>
           <th colspan="4" style="background:#FFE4E6;border:1px solid #FECDD3">Non-Adjustable Deductions</th>
-          <th rowspan="2" style="background:#DBEAFE">Cheque Amount</th>
-          <th rowspan="2" style="background:#DCFCE7">Amount Received</th>
+          <th rowspan="2" style="background:#DBEAFE">Amount Received</th>
           <th rowspan="2">Remarks</th>
           <th rowspan="2"></th>
         </tr>
@@ -435,11 +403,11 @@
 
   <div class="totals-bar" id="performaTable1Totals" style="margin-top:8px;background:#FEF3C7"></div>
 
-  <!-- TABLE 2: Detailed Invoice-wise Entry with Formulas -->
-  <h4 style="margin-top:20px;margin-bottom:10px;color:#1565C0">📝 Table 2: Invoice-wise Detailed Entry (Formula Enabled)</h4>
+  <!-- TABLE 2: Detailed Invoice-wise Entry with Formulas (Auto-Synced from Table 1) -->
+  <h4 style="margin-top:20px;margin-bottom:10px;color:#1565C0">📝 Table 2: Auto-Synced Detail Allocation (Formula Enabled)</h4>
   <div style="margin-bottom:8px;font-size:12px;color:#64748B">
-    💡 Tip: Use formulas like <code>=A*0.16</code> for IT, <code>=B*0.15</code> for PRA, etc. Column references: 
-    <strong>A</strong>=Full Amount, <strong>B</strong>=Full Sales, <strong>C</strong>=Full Gross, 
+    💡 This table auto-syncs with Table 1. Use formulas like <code>=A*0.16</code> for IT, <code>=B*0.15</code> for PRA, etc. Column references: 
+    <strong>A</strong>=Invoice Amount, <strong>B</strong>=Sales Tax, <strong>C</strong>=Gross Amount, 
     <strong>D</strong>=Cheque Amount, <strong>E</strong>=Sales Received
   </div>
   <div class="table-wrap" style="overflow-x:auto">
@@ -449,11 +417,10 @@
           <th rowspan="2">Job No.</th>
           <th rowspan="2">Invoice</th>
           <th rowspan="2" style="min-width:140px">Client</th>
-          <th rowspan="2" style="background:#EFF6FF">Invoice Amount<br><small style="font-weight:normal;color:#64748B">(Enter manually)</small></th>
+          <th rowspan="2" style="background:#EFF6FF">Invoice Amount<br><small style="font-weight:normal;color:#64748B">(From Table 1)</small></th>
           <th colspan="4" style="background:#FEF3C7;border:1px solid #FCD34D">Adjustable Deductions</th>
           <th colspan="4" style="background:#FFE4E6;border:1px solid #FECDD3">Non-Adjustable Deductions</th>
-          <th rowspan="2" style="background:#DBEAFE">Cheque Amount</th>
-          <th rowspan="2" style="background:#DCFCE7">Amount Received</th>
+          <th rowspan="2" style="background:#DBEAFE">Amount Received</th>
           <th rowspan="2">Subtotal</th>
           <th rowspan="2">Remarks</th>
         </tr>
@@ -478,7 +445,6 @@
   <div style="display:flex;gap:8px;margin-top:16px">
     <button class="btn btn-success" onclick="savePerforma()">💾 Save Performa (Auto-creates Receipts)</button>
     <button class="btn btn-gray btn-sm" onclick="clearPerforma()">Clear All</button>
-    <button class="btn btn-primary btn-sm" onclick="syncTable2FromTable1()">🔄 Sync Table 2 from Table 1</button>
   </div>
 </div>
 
@@ -1107,15 +1073,10 @@ function onChequeSelected() {
       document.getElementById('p_chqAllocDisplay').textContent = `Rs. ${fmt(performaChequeData.allocated)}`;
       document.getElementById('p_chqRemainDisplay').textContent = `Rs. ${fmt(performaChequeData.remaining)}`;
       
-      // Reset cheque-level deductions when new cheque is selected
-      document.getElementById('p_it_deducted').value = 0;
-      document.getElementById('p_pra_fee').value = 0;
-      document.getElementById('p_other_adj').value = 0;
-      document.getElementById('p_st_deducted').value = 0;
-      document.getElementById('p_st_received').value = 0;
-      document.getElementById('p_extra_st').value = 0;
-      document.getElementById('p_other_ded').value = 0;
-      updateChequeLevelDeductions();
+      // Clear existing lines and render empty tables
+      performaLines = [];
+      renderTable1();
+      renderTable2();
     })
     .catch(err => {
       console.error('Error fetching cheque details:', err);
@@ -1286,7 +1247,8 @@ function updatePstRate(idx, rate) {
 
 function removePerformaLine(idx) {
   performaLines.splice(idx, 1);
-  renderPerformaLines();
+  renderTable1();
+  renderTable2(); // Auto-sync after removal
 }
 
 function updatePerformaTotals() {
@@ -1464,6 +1426,7 @@ function updateTable1Field(idx, field, value) {
     performaLines[idx][field] = value;
   }
   renderTable1();
+  renderTable2(); // Auto-sync Table 2 when Table 1 changes
   updateTable1Totals();
 }
 
@@ -1496,47 +1459,182 @@ async function selectInvoiceForRow(rowIdx, invoiceId) {
   }
 }
 
-function addAnotherInvoiceForJob(jobNo, projectId) {
-  // Find the project info
-  const projInfo = _allProjects.find(p => p.job_no === jobNo);
-  if (!projInfo) {
-    toast('Project not found', 'error');
+// Add new job row function - called from Table 1 header button
+function addNewJobRow() {
+  if (!performaChequeData) { 
+    toast('Please select a cheque first', 'error'); 
+    return; 
+  }
+  
+  // Show project selection dialog
+  const projSelectHtml = `
+    <div style="margin-bottom:12px">
+      <label class="form-label">Select Job / Project:</label>
+      <select id="newJobProjectSelect" class="form-control" style="width:100%" onchange="onNewJobProjectChange(this.value)">
+        <option value="">-- Select Job --</option>
+        ${_allProjects.map(p => `<option value="${p.id}" data-job-no="${p.job_no}">${p.job_no} - ${p.project_name}</option>`).join('')}
+      </select>
+    </div>
+  `;
+
+  showDialog('Add New Job', projSelectHtml, ['Cancel', 'Add']).then(confirmed => {
+    if (!confirmed) return;
+    
+    const selectedProjId = document.getElementById('newJobProjectSelect').value;
+    if (!selectedProjId) {
+      toast('Please select a job', 'error');
+      return;
+    }
+    
+    const projInfo = _allProjects.find(p => p.id == selectedProjId);
+    
+    // Fetch pending invoices for this project
+    fetch(`/api/performa/pending_invoices?project_id=${selectedProjId}`)
+      .then(r => r.json())
+      .then(pending => {
+        if (pending.length === 0) {
+          toast('No pending invoices for this job', 'warning');
+          return;
+        }
+        
+        // Show invoice selection
+        const invSelectHtml = `
+          <div style="margin-bottom:12px">
+            <label class="form-label">Select Invoice:</label>
+            <select id="newJobInvoiceSelect" class="form-control" style="width:100%">
+              ${pending.map(inv => `<option value="${inv.id}">${inv.invoice_no} - Rs.${fmt(inv.gross_amount)} (Balance: Rs.${fmt(inv.balance)})</option>`).join('')}
+            </select>
+          </div>
+        `;
+        
+        showDialog('Select Invoice', invSelectHtml, ['Cancel', 'Add']).then(invConfirmed => {
+          if (!invConfirmed) return;
+          
+          const selectedInvId = document.getElementById('newJobInvoiceSelect').value;
+          const selectedInv = pending.find(inv => inv.id == selectedInvId);
+          
+          performaLines.push({
+            project_id: selectedProjId,
+            job_no: projInfo?.job_no || '',
+            project_name: projInfo?.project_name || '',
+            invoice_txn_id: selectedInv.id,
+            invoice_no: selectedInv.invoice_no,
+            invoice_date: selectedInv.invoice_date,
+            invoice_amount: selectedInv.amount,
+            invoice_tax: selectedInv.tax_amount,
+            invoice_gross: selectedInv.gross_amount,
+            balance: selectedInv.balance,
+            pst_rate: 0, pst_amount: 0,
+            it_amount: 0, pra_amount: 0, other_adj: 0, other_non_adj: 0,
+            cheque_share: 0,
+            st_received: 0, st_deducted: 0, extra_st_deducted: 0,
+            client_name: projInfo?.client_name || '',
+            client_ntn: '',
+            remarks: '',
+            t2_invoice_amt: selectedInv.amount,
+            t2_it_formula: '=A*0.16',
+            t2_pra_formula: '=A*0.15',
+            t2_oadj_formula: '',
+            t2_sded_formula: '',
+            t2_srcv_formula: '',
+            t2_estd_formula: '',
+            t2_oded_formula: '',
+            t2_remarks: '',
+          });
+          
+          renderTable1();
+          renderTable2(); // Auto-sync Table 2
+          toast('Job and invoice added successfully', 'success');
+        });
+      });
+  });
+}
+
+// Helper for project change in dialog
+function onNewJobProjectChange(projId) {
+  // Could be used to update invoice dropdown dynamically
+}
+
+// Add another invoice to current job - called from Table 1 header button
+function addAnotherInvoiceToCurrentJob() {
+  if (performaLines.length === 0) {
+    toast('Please add a job first', 'error');
     return;
   }
   
-  // Add a new empty row for the same job
-  performaLines.push({
-    project_id: projectId,
-    job_no: jobNo,
-    project_name: projInfo.project_name || '',
-    invoice_txn_id: null,
-    invoice_no: '',
-    invoice_date: '',
-    invoice_amount: 0,
-    invoice_tax: 0,
-    invoice_gross: 0,
-    balance: 0,
-    pst_rate: 0, pst_amount: 0,
-    it_amount: 0, pra_amount: 0, other_adj: 0, other_non_adj: 0,
-    cheque_share: 0,
-    st_received: 0, st_deducted: 0, extra_st_deducted: 0,
-    client_name: projInfo.client_name || '',
-    client_ntn: '',
-    remarks: '',
-    t2_invoice_amt: '',
-    t2_it_formula: '',
-    t2_pra_formula: '',
-    t2_oadj_formula: '',
-    t2_sded_formula: '',
-    t2_srcv_formula: '',
-    t2_estd_formula: '',
-    t2_oded_formula: '',
-    t2_remarks: '',
-  });
+  // Get the last added job
+  const lastLine = performaLines[performaLines.length - 1];
+  const jobNo = lastLine.job_no;
+  const projectId = lastLine.project_id;
   
-  renderTable1();
-  renderTable2();
-  toast('New row added for ' + jobNo + '. Select an invoice from dropdown.', 'success');
+  // Fetch pending invoices for this project
+  fetch(`/api/performa/pending_invoices?project_id=${projectId}`)
+    .then(r => r.json())
+    .then(pending => {
+      // Filter out already added invoices
+      const addedInvIds = performaLines.filter(l => l.job_no === jobNo).map(l => l.invoice_txn_id);
+      const availableInvoices = pending.filter(inv => !addedInvIds.includes(inv.id));
+      
+      if (availableInvoices.length === 0) {
+        toast('No more pending invoices for this job', 'info');
+        return;
+      }
+      
+      const invSelectHtml = `
+        <div style="margin-bottom:12px">
+          <label class="form-label">Select Invoice for ${jobNo}:</label>
+          <select id="addInvSelect" class="form-control" style="width:100%">
+            ${availableInvoices.map(inv => `<option value="${inv.id}">${inv.invoice_no} - Rs.${fmt(inv.gross_amount)} (Balance: Rs.${fmt(inv.balance)})</option>`).join('')}
+          </select>
+        </div>
+      `;
+      
+      showDialog('Add Invoice', invSelectHtml, ['Cancel', 'Add']).then(confirmed => {
+        if (!confirmed) return;
+        
+        const selectedInvId = document.getElementById('addInvSelect').value;
+        const selectedInv = availableInvoices.find(inv => inv.id == selectedInvId);
+        const projInfo = _allProjects.find(p => p.id == projectId);
+        
+        performaLines.push({
+          project_id: projectId,
+          job_no: jobNo,
+          project_name: projInfo?.project_name || '',
+          invoice_txn_id: selectedInv.id,
+          invoice_no: selectedInv.invoice_no,
+          invoice_date: selectedInv.invoice_date,
+          invoice_amount: selectedInv.amount,
+          invoice_tax: selectedInv.tax_amount,
+          invoice_gross: selectedInv.gross_amount,
+          balance: selectedInv.balance,
+          pst_rate: 0, pst_amount: 0,
+          it_amount: 0, pra_amount: 0, other_adj: 0, other_non_adj: 0,
+          cheque_share: 0,
+          st_received: 0, st_deducted: 0, extra_st_deducted: 0,
+          client_name: projInfo?.client_name || '',
+          client_ntn: '',
+          remarks: '',
+          t2_invoice_amt: selectedInv.amount,
+          t2_it_formula: '=A*0.16',
+          t2_pra_formula: '=A*0.15',
+          t2_oadj_formula: '',
+          t2_sded_formula: '',
+          t2_srcv_formula: '',
+          t2_estd_formula: '',
+          t2_oded_formula: '',
+          t2_remarks: '',
+        });
+        
+        renderTable1();
+        renderTable2(); // Auto-sync Table 2
+        toast('Invoice added successfully', 'success');
+      });
+    });
+}
+
+// Old function kept for backward compatibility
+function addAnotherInvoiceForJob(jobNo, projectId) {
+  addAnotherInvoiceToCurrentJob();
 }
 
 function updateTable1Totals() {
