@@ -905,7 +905,10 @@ const FY_MONTHS = [
 
 function initFYDropdown() {
   const fySel = document.getElementById('p_fy');
-  if (!fySel) return;
+  if (!fySel) {
+    console.error('FY dropdown not found');
+    return;
+  }
   fySel.innerHTML = '';
   FY_OPTIONS.forEach(fy => {
     const opt = document.createElement('option');
@@ -913,10 +916,13 @@ function initFYDropdown() {
     opt.textContent = fy.label;
     fySel.appendChild(opt);
   });
+  // Default to FY 2025-26
   fySel.value = '2025';
+  console.log('FY Dropdown initialized, selected:', fySel.value);
   initMonthDropdownForFY('2025');
   // Trigger change event to load cheques
   setTimeout(() => {
+    console.log('Triggering FY change event');
     fySel.dispatchEvent(new Event('change'));
     onPerformaPeriodChange();
   }, 100);
@@ -925,7 +931,10 @@ function initFYDropdown() {
 function initMonthDropdownForFY(fyStart) {
   const mSel = document.getElementById('p_month');
   const ySel = document.getElementById('p_year');
-  if (!mSel || !ySel) return;
+  if (!mSel || !ySel) {
+    console.error('Month or Year dropdown not found', { mSel, ySel });
+    return;
+  }
   
   mSel.innerHTML = '';
   ySel.innerHTML = '';
@@ -950,6 +959,8 @@ function initMonthDropdownForFY(fyStart) {
   // Set default to first month and start year
   mSel.value = '7';
   ySel.value = fyStart;
+  
+  console.log('Month dropdown initialized for FY', fyStart, 'selected month:', mSel.value, 'year:', ySel.value);
 }
 
 function onFYChange() {
@@ -959,6 +970,10 @@ function onFYChange() {
 }
 
 async function onPerformaPeriodChange() {
+  const m = document.getElementById('p_month')?.value;
+  const y = document.getElementById('p_year')?.value;
+  console.log('Period changed: month=', m, 'year=', y);
+  
   if (performaLines.length > 0) {
     if (!await confirmDialog('Changing the month will clear the jobs you have added so far. Continue?')) {
       return;
@@ -970,36 +985,60 @@ async function onPerformaPeriodChange() {
     renderTable1();
     renderTable2();
   }
-  loadChequeDropdown();
+  await loadChequeDropdown();
 }
 
 async function loadChequeDropdown() {
   const m = document.getElementById('p_month')?.value;
   const y = document.getElementById('p_year')?.value;
-  if (!m || !y) return;
-  const rows = await fetch(`/api/cheques?month=${m}&year=${y}`).then(r=>r.json());
-  const sel = document.getElementById('p_cheque');
-  if (!sel) return;
-  sel.innerHTML = '<option value="">Select a cheque...</option>';
-  const usable = rows.filter(r => r.remaining > 0.5); // hide fully-booked cheques
-  if (usable.length === 0) {
-    const opt = document.createElement('option');
-    opt.value = ''; opt.textContent = 'No available cheques for this month — add one in the Cheques tab';
-    opt.disabled = true;
-    sel.appendChild(opt);
+  console.log('Loading cheques for month=', m, 'year=', y);
+  
+  if (!m || !y) {
+    console.warn('Month or year not selected');
+    return;
   }
-  usable.forEach(r => {
-    const opt = document.createElement('option');
-    opt.value = r.id;
-    opt.textContent = `${r.cheque_no} — Rs.${fmt(r.amount)} (Available: Rs.${fmt(r.remaining)})`;
-    opt.dataset.amount = r.amount;
-    opt.dataset.allocated = r.allocated;
-    opt.dataset.remaining = r.remaining;
-    sel.appendChild(opt);
-  });
-  // current selection no longer valid if month changed -> reset info panel
-  document.getElementById('p_chequeInfo').style.display = 'none';
-  performaChequeData = null;
+  
+  try {
+    const response = await fetch(`/api/cheques?month=${m}&year=${y}`);
+    const rows = await response.json();
+    console.log('Cheques API response:', rows);
+    
+    const sel = document.getElementById('p_cheque');
+    if (!sel) {
+      console.error('Cheque dropdown not found');
+      return;
+    }
+    
+    sel.innerHTML = '<option value="">Select a cheque...</option>';
+    const usable = rows.filter(r => r.remaining > 0.5); // hide fully-booked cheques
+    
+    if (usable.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = ''; 
+      opt.textContent = 'No available cheques for this month — add one in the Cheques tab';
+      opt.disabled = true;
+      sel.appendChild(opt);
+      console.log('No usable cheques found');
+    } else {
+      usable.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.textContent = `${r.cheque_no} — Rs.${fmt(r.amount)} (Available: Rs.${fmt(r.remaining)})`;
+        opt.dataset.amount = r.amount;
+        opt.dataset.allocated = r.allocated;
+        opt.dataset.remaining = r.remaining;
+        sel.appendChild(opt);
+      });
+      console.log('Loaded', usable.length, 'cheques');
+    }
+    
+    // current selection no longer valid if month changed -> reset info panel
+    document.getElementById('p_chequeInfo').style.display = 'none';
+    performaChequeData = null;
+  } catch (err) {
+    console.error('Error loading cheques:', err);
+    toast('Failed to load cheques', 'error');
+  }
 }
 
 function onChequeSelected() {
