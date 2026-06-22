@@ -916,7 +916,10 @@ function initFYDropdown() {
   fySel.value = '2025';
   initMonthDropdownForFY('2025');
   // Trigger change event to load cheques
-  setTimeout(() => fySel.dispatchEvent(new Event('change')), 100);
+  setTimeout(() => {
+    fySel.dispatchEvent(new Event('change'));
+    onPerformaPeriodChange();
+  }, 100);
 }
 
 function initMonthDropdownForFY(fyStart) {

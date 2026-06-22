@@ -71,9 +71,12 @@ tbody td.num{text-align:right;font-variant-numeric:tabular-nums}
 .btn-sm{padding:5px 10px;font-size:11px}
 .form-group{margin-bottom:12px}
 .form-label{display:block;font-size:12px;font-weight:600;color:var(--label);margin-bottom:4px}
-.form-control{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;background:#fff;transition:border-color .15s,box-shadow .15s}
+.thead-colored th{color:#1E293B!important}
+.thead-colored th[style*=\"background:#FEF3C7\"], .thead-colored th[style*=\"background:#FFE4E6\"], .thead-colored th[style*=\"background:#DBEAFE\"], .thead-colored th[style*=\"background:#DCFCE7\"]{color:#1E293B!important}
+.form-control{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;background:#fff;color:#1E293B;transition:border-color .15s,box-shadow .15s}
 .form-control:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(33,150,243,.12)}
-select.form-control{cursor:pointer}
+.form-control::placeholder{color:#94A3B8}
+select.form-control{cursor:pointer;color:#1E293B}
 .form-row{display:grid;gap:12px}
 .form-row-2{grid-template-columns:1fr 1fr}.form-row-3{grid-template-columns:1fr 1fr 1fr}.form-row-4{grid-template-columns:1fr 1fr 1fr 1fr}
 .calc-box{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;padding:10px 14px;margin:8px 0;display:flex;gap:24px;align-items:center}
