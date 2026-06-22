@@ -1460,7 +1460,7 @@ async function selectInvoiceForRow(rowIdx, invoiceId) {
 }
 
 // Add new job row function - called from Table 1 header button
-function addNewJobRow() {
+async function addNewJobRow() {
   if (!performaChequeData) { 
     toast('Please select a cheque first', 'error'); 
     return; 
@@ -1477,7 +1477,8 @@ function addNewJobRow() {
     </div>
   `;
 
-  showDialog('Add New Job', projSelectHtml, ['Cancel', 'Add']).then(confirmed => {
+  try {
+    const confirmed = await showDialog('Add New Job', projSelectHtml, ['Cancel', 'Add']);
     if (!confirmed) return;
     
     const selectedProjId = document.getElementById('newJobProjectSelect').value;
@@ -1489,65 +1490,64 @@ function addNewJobRow() {
     const projInfo = _allProjects.find(p => p.id == selectedProjId);
     
     // Fetch pending invoices for this project
-    fetch(`/api/performa/pending_invoices?project_id=${selectedProjId}`)
-      .then(r => r.json())
-      .then(pending => {
-        if (pending.length === 0) {
-          toast('No pending invoices for this job', 'warning');
-          return;
-        }
-        
-        // Show invoice selection
-        const invSelectHtml = `
-          <div style="margin-bottom:12px">
-            <label class="form-label">Select Invoice:</label>
-            <select id="newJobInvoiceSelect" class="form-control" style="width:100%">
-              ${pending.map(inv => `<option value="${inv.id}">${inv.invoice_no} - Rs.${fmt(inv.gross_amount)} (Balance: Rs.${fmt(inv.balance)})</option>`).join('')}
-            </select>
-          </div>
-        `;
-        
-        showDialog('Select Invoice', invSelectHtml, ['Cancel', 'Add']).then(invConfirmed => {
-          if (!invConfirmed) return;
-          
-          const selectedInvId = document.getElementById('newJobInvoiceSelect').value;
-          const selectedInv = pending.find(inv => inv.id == selectedInvId);
-          
-          performaLines.push({
-            project_id: selectedProjId,
-            job_no: projInfo?.job_no || '',
-            project_name: projInfo?.project_name || '',
-            invoice_txn_id: selectedInv.id,
-            invoice_no: selectedInv.invoice_no,
-            invoice_date: selectedInv.invoice_date,
-            invoice_amount: selectedInv.amount,
-            invoice_tax: selectedInv.tax_amount,
-            invoice_gross: selectedInv.gross_amount,
-            balance: selectedInv.balance,
-            pst_rate: 0, pst_amount: 0,
-            it_amount: 0, pra_amount: 0, other_adj: 0, other_non_adj: 0,
-            cheque_share: 0,
-            st_received: 0, st_deducted: 0, extra_st_deducted: 0,
-            client_name: projInfo?.client_name || '',
-            client_ntn: '',
-            remarks: '',
-            t2_invoice_amt: selectedInv.amount,
-            t2_it_formula: '=A*0.16',
-            t2_pra_formula: '=A*0.15',
-            t2_oadj_formula: '',
-            t2_sded_formula: '',
-            t2_srcv_formula: '',
-            t2_estd_formula: '',
-            t2_oded_formula: '',
-            t2_remarks: '',
-          });
-          
-          renderTable1();
-          renderTable2(); // Auto-sync Table 2
-          toast('Job and invoice added successfully', 'success');
-        });
-      });
-  });
+    const pending = await fetch(`/api/performa/pending_invoices?project_id=${selectedProjId}`).then(r => r.json());
+    if (pending.length === 0) {
+      toast('No pending invoices for this job', 'warning');
+      return;
+    }
+    
+    // Show invoice selection
+    const invSelectHtml = `
+      <div style="margin-bottom:12px">
+        <label class="form-label">Select Invoice:</label>
+        <select id="newJobInvoiceSelect" class="form-control" style="width:100%">
+          ${pending.map(inv => `<option value="${inv.id}">${inv.invoice_no} - Rs.${fmt(inv.gross_amount)} (Balance: Rs.${fmt(inv.balance)})</option>`).join('')}
+        </select>
+      </div>
+    `;
+    
+    const invConfirmed = await showDialog('Select Invoice', invSelectHtml, ['Cancel', 'Add']);
+    if (!invConfirmed) return;
+    
+    const selectedInvId = document.getElementById('newJobInvoiceSelect').value;
+    const selectedInv = pending.find(inv => inv.id == selectedInvId);
+    
+    performaLines.push({
+      project_id: selectedProjId,
+      job_no: projInfo?.job_no || '',
+      project_name: projInfo?.project_name || '',
+      invoice_txn_id: selectedInv.id,
+      invoice_no: selectedInv.invoice_no,
+      invoice_date: selectedInv.invoice_date,
+      invoice_amount: selectedInv.amount,
+      invoice_tax: selectedInv.tax_amount,
+      invoice_gross: selectedInv.gross_amount,
+      balance: selectedInv.balance,
+      pst_rate: 0, pst_amount: 0,
+      it_amount: 0, pra_amount: 0, other_adj: 0, other_non_adj: 0,
+      cheque_share: 0,
+      st_received: 0, st_deducted: 0, extra_st_deducted: 0,
+      client_name: projInfo?.client_name || '',
+      client_ntn: '',
+      remarks: '',
+      t2_invoice_amt: selectedInv.amount,
+      t2_it_formula: '=A*0.16',
+      t2_pra_formula: '=A*0.15',
+      t2_oadj_formula: '',
+      t2_sded_formula: '',
+      t2_srcv_formula: '',
+      t2_estd_formula: '',
+      t2_oded_formula: '',
+      t2_remarks: '',
+    });
+    
+    renderTable1();
+    renderTable2(); // Auto-sync Table 2
+    toast('Job and invoice added successfully', 'success');
+  } catch (e) {
+    console.error('Error adding job:', e);
+    toast('Error adding job: ' + e.message, 'error');
+  }
 }
 
 // Helper for project change in dialog
@@ -1556,7 +1556,7 @@ function onNewJobProjectChange(projId) {
 }
 
 // Add another invoice to current job - called from Table 1 header button
-function addAnotherInvoiceToCurrentJob() {
+async function addAnotherInvoiceToCurrentJob() {
   if (performaLines.length === 0) {
     toast('Please add a job first', 'error');
     return;
@@ -1567,69 +1567,71 @@ function addAnotherInvoiceToCurrentJob() {
   const jobNo = lastLine.job_no;
   const projectId = lastLine.project_id;
   
-  // Fetch pending invoices for this project
-  fetch(`/api/performa/pending_invoices?project_id=${projectId}`)
-    .then(r => r.json())
-    .then(pending => {
-      // Filter out already added invoices
-      const addedInvIds = performaLines.filter(l => l.job_no === jobNo).map(l => l.invoice_txn_id);
-      const availableInvoices = pending.filter(inv => !addedInvIds.includes(inv.id));
-      
-      if (availableInvoices.length === 0) {
-        toast('No more pending invoices for this job', 'info');
-        return;
-      }
-      
-      const invSelectHtml = `
-        <div style="margin-bottom:12px">
-          <label class="form-label">Select Invoice for ${jobNo}:</label>
-          <select id="addInvSelect" class="form-control" style="width:100%">
-            ${availableInvoices.map(inv => `<option value="${inv.id}">${inv.invoice_no} - Rs.${fmt(inv.gross_amount)} (Balance: Rs.${fmt(inv.balance)})</option>`).join('')}
-          </select>
-        </div>
-      `;
-      
-      showDialog('Add Invoice', invSelectHtml, ['Cancel', 'Add']).then(confirmed => {
-        if (!confirmed) return;
-        
-        const selectedInvId = document.getElementById('addInvSelect').value;
-        const selectedInv = availableInvoices.find(inv => inv.id == selectedInvId);
-        const projInfo = _allProjects.find(p => p.id == projectId);
-        
-        performaLines.push({
-          project_id: projectId,
-          job_no: jobNo,
-          project_name: projInfo?.project_name || '',
-          invoice_txn_id: selectedInv.id,
-          invoice_no: selectedInv.invoice_no,
-          invoice_date: selectedInv.invoice_date,
-          invoice_amount: selectedInv.amount,
-          invoice_tax: selectedInv.tax_amount,
-          invoice_gross: selectedInv.gross_amount,
-          balance: selectedInv.balance,
-          pst_rate: 0, pst_amount: 0,
-          it_amount: 0, pra_amount: 0, other_adj: 0, other_non_adj: 0,
-          cheque_share: 0,
-          st_received: 0, st_deducted: 0, extra_st_deducted: 0,
-          client_name: projInfo?.client_name || '',
-          client_ntn: '',
-          remarks: '',
-          t2_invoice_amt: selectedInv.amount,
-          t2_it_formula: '=A*0.16',
-          t2_pra_formula: '=A*0.15',
-          t2_oadj_formula: '',
-          t2_sded_formula: '',
-          t2_srcv_formula: '',
-          t2_estd_formula: '',
-          t2_oded_formula: '',
-          t2_remarks: '',
-        });
-        
-        renderTable1();
-        renderTable2(); // Auto-sync Table 2
-        toast('Invoice added successfully', 'success');
-      });
+  try {
+    // Fetch pending invoices for this project
+    const pending = await fetch(`/api/performa/pending_invoices?project_id=${projectId}`).then(r => r.json());
+    
+    // Filter out already added invoices
+    const addedInvIds = performaLines.filter(l => l.job_no === jobNo).map(l => l.invoice_txn_id);
+    const availableInvoices = pending.filter(inv => !addedInvIds.includes(inv.id));
+    
+    if (availableInvoices.length === 0) {
+      toast('No more pending invoices for this job', 'info');
+      return;
+    }
+    
+    const invSelectHtml = `
+      <div style="margin-bottom:12px">
+        <label class="form-label">Select Invoice for ${jobNo}:</label>
+        <select id="addInvSelect" class="form-control" style="width:100%">
+          ${availableInvoices.map(inv => `<option value="${inv.id}">${inv.invoice_no} - Rs.${fmt(inv.gross_amount)} (Balance: Rs.${fmt(inv.balance)})</option>`).join('')}
+        </select>
+      </div>
+    `;
+    
+    const confirmed = await showDialog('Add Invoice', invSelectHtml, ['Cancel', 'Add']);
+    if (!confirmed) return;
+    
+    const selectedInvId = document.getElementById('addInvSelect').value;
+    const selectedInv = availableInvoices.find(inv => inv.id == selectedInvId);
+    const projInfo = _allProjects.find(p => p.id == projectId);
+    
+    performaLines.push({
+      project_id: projectId,
+      job_no: jobNo,
+      project_name: projInfo?.project_name || '',
+      invoice_txn_id: selectedInv.id,
+      invoice_no: selectedInv.invoice_no,
+      invoice_date: selectedInv.invoice_date,
+      invoice_amount: selectedInv.amount,
+      invoice_tax: selectedInv.tax_amount,
+      invoice_gross: selectedInv.gross_amount,
+      balance: selectedInv.balance,
+      pst_rate: 0, pst_amount: 0,
+      it_amount: 0, pra_amount: 0, other_adj: 0, other_non_adj: 0,
+      cheque_share: 0,
+      st_received: 0, st_deducted: 0, extra_st_deducted: 0,
+      client_name: projInfo?.client_name || '',
+      client_ntn: '',
+      remarks: '',
+      t2_invoice_amt: selectedInv.amount,
+      t2_it_formula: '=A*0.16',
+      t2_pra_formula: '=A*0.15',
+      t2_oadj_formula: '',
+      t2_sded_formula: '',
+      t2_srcv_formula: '',
+      t2_estd_formula: '',
+      t2_oded_formula: '',
+      t2_remarks: '',
     });
+    
+    renderTable1();
+    renderTable2(); // Auto-sync Table 2
+    toast('Invoice added successfully', 'success');
+  } catch (e) {
+    console.error('Error adding invoice:', e);
+    toast('Error adding invoice: ' + e.message, 'error');
+  }
 }
 
 // Old function kept for backward compatibility
