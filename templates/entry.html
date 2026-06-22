@@ -476,6 +476,7 @@ function switchEntryTab(btn, tabId) {
   btn.classList.add('active');
   document.getElementById(tabId).classList.add('active');
 }
+window.switchEntryTab = switchEntryTab;
 
 // ── BILLING ──────────────────────────────────────────────────────────────────
 function calcBillingTax() {
