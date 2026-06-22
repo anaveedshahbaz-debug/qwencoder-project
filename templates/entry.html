@@ -336,23 +336,58 @@
 <div id="tabPerforma" class="tab-panel">
 
 <div class="card">
-  <div class="card-header"><span class="card-title">🧾 New Sales Tax Performa — Book Cheque Against Invoices</span></div>
+  <div class="card-header"><span class="card-title">🧾 New Sales Tax Performa — Book Cheque Against Jobs</span></div>
 
+  <!-- STEP 1-3: Financial Year, Month, Cheque Selection -->
   <div class="form-row form-row-4">
-    <div class="form-group"><label class="form-label">Financial Year</label><select id="p_fy" class="form-control" onchange="onFYChange()"></select></div>
+    <div class="form-group"><label class="form-label">Financial Year *</label><select id="p_fy" class="form-control" onchange="onFYChange()"></select></div>
     <div class="form-group"><label class="form-label">Month *</label><select id="p_month" class="form-control" onchange="onPerformaPeriodChange()"></select></div>
-    <div class="form-group"><label class="form-label">Year</label><select id="p_year" class="form-control" onchange="onPerformaPeriodChange()"></select></div>
+    <div class="form-group"><label class="form-label">Year</label><select id="p_year" class="form-control" disabled style="background:#F1F5F9"></select></div>
     <div class="form-group"><label class="form-label">Select Cheque *</label>
       <select id="p_cheque" class="form-control" onchange="onChequeSelected()"></select>
     </div>
   </div>
 
   <div id="p_chequeInfo" class="calc-box" style="display:none">
-    <div class="calc-item"><div class="calc-label">Cheque Amount</div><div class="calc-value" id="p_chqAmtDisplay">Rs. 0.00</div></div>
+    <div class="calc-item"><div class="calc-label">Cheque No.</div><div class="calc-value" id="p_chqNoDisplay">—</div></div>
+    <div class="calc-item"><div class="calc-label">Cheque Date</div><div class="calc-value" id="p_chqDateDisplay">—</div></div>
+    <div class="calc-item"><div class="calc-label">Client Name</div><div class="calc-value" id="p_clientDisplay">—</div></div>
+    <div class="calc-item"><div class="calc-label">Total Cheque Amount</div><div class="calc-value" id="p_chqAmtDisplay">Rs. 0.00</div></div>
     <div class="calc-item"><div class="calc-label">Already Allocated</div><div class="calc-value" style="color:#F59E0B" id="p_chqAllocDisplay">Rs. 0.00</div></div>
-    <div class="calc-item"><div class="calc-label">Available to Book</div><div class="calc-value" style="color:#10B981" id="p_chqRemainDisplay">Rs. 0.00</div></div>
+    <div class="calc-item"><div class="calc-label">Available Balance</div><div class="calc-value" style="color:#10B981" id="p_chqRemainDisplay">Rs. 0.00</div></div>
   </div>
 
+  <!-- STEP 4: Cheque-Level Deductions Section -->
+  <h4 style="margin-top:20px;margin-bottom:10px;color:#1565C0">📊 Step 4: Enter Cheque-Level Deductions (Applied Once to Complete Cheque)</h4>
+  <div class="two-col" style="align-items:start">
+  <div class="card" style="flex:1;background:#FEF3C7;border-color:#FCD34D">
+    <div class="card-header" style="background:#FDE68A"><span class="card-title">➕ Adjustable Deductions</span></div>
+    <div class="form-row form-row-3">
+      <div class="form-group"><label class="form-label">Income Tax Deducted</label><input type="number" id="p_it_deducted" class="form-control" step="0.01" value="0" onchange="updateChequeLevelDeductions()"></div>
+      <div class="form-group"><label class="form-label">PRA Fee</label><input type="number" id="p_pra_fee" class="form-control" step="0.01" value="0" onchange="updateChequeLevelDeductions()"></div>
+      <div class="form-group"><label class="form-label">Other Adjustable</label><input type="number" id="p_other_adj" class="form-control" step="0.01" value="0" onchange="updateChequeLevelDeductions()"></div>
+    </div>
+  </div>
+  <div class="card" style="flex:1;background:#FFE4E6;border-color:#FECDD3">
+    <div class="card-header" style="background:#FECDD3"><span class="card-title">➖ Non-Adjustable Deductions</span></div>
+    <div class="form-row form-row-3">
+      <div class="form-group"><label class="form-label">Sales Tax Deducted</label><input type="number" id="p_st_deducted" class="form-control" step="0.01" value="0" onchange="updateChequeLevelDeductions()"></div>
+      <div class="form-group"><label class="form-label">Sales Tax Received From Client</label><input type="number" id="p_st_received" class="form-control" step="0.01" value="0" onchange="updateChequeLevelDeductions()"></div>
+      <div class="form-group"><label class="form-label">Extra Sales Tax Deduction</label><input type="number" id="p_extra_st" class="form-control" step="0.01" value="0" onchange="updateChequeLevelDeductions()"></div>
+    </div>
+    <div class="form-row form-row-2">
+      <div class="form-group"><label class="form-label">Other Deduction</label><input type="number" id="p_other_ded" class="form-control" step="0.01" value="0" onchange="updateChequeLevelDeductions()"></div>
+    </div>
+  </div>
+  </div>
+
+  <div class="calc-box" style="margin-top:12px;background:#DBEAFE;border-color:#BFDBFE">
+    <div class="calc-item"><div class="calc-label">Amount Received (Auto-Calculated)</div><div class="calc-value" id="p_amtReceived" style="font-size:20px;font-weight:700;color:#1E40AF">Rs. 0.00</div></div>
+    <div class="calc-item" style="font-size:11px;color:#64748B">Formula: Cheque Amount + Adjustable Deductions - Sales Tax Received From Client</div>
+  </div>
+
+  <!-- STEP 5: Add Jobs Section -->
+  <h4 style="margin-top:20px;margin-bottom:10px;color:#1565C0">📝 Step 5: Select Jobs (Invoices Load Automatically)</h4>
   <div style="margin-top:12px">
     <label class="form-label">Add Job to this Performa</label>
     <div style="display:flex;gap:8px;align-items:flex-end">
@@ -1049,16 +1084,59 @@ function onChequeSelected() {
     performaChequeData = null;
     return;
   }
-  performaChequeData = {
-    id: opt.value,
-    amount: parseFloat(opt.dataset.amount),
-    allocated: parseFloat(opt.dataset.allocated),
-    remaining: parseFloat(opt.dataset.remaining),
-  };
-  document.getElementById('p_chequeInfo').style.display = 'flex';
-  document.getElementById('p_chqAmtDisplay').textContent = `Rs. ${fmt(performaChequeData.amount)}`;
-  document.getElementById('p_chqAllocDisplay').textContent = `Rs. ${fmt(performaChequeData.allocated)}`;
-  document.getElementById('p_chqRemainDisplay').textContent = `Rs. ${fmt(performaChequeData.remaining)}`;
+  
+  // Fetch full cheque details from API
+  fetch(`/api/cheques/${opt.value}`)
+    .then(r => r.json())
+    .then(chq => {
+      performaChequeData = {
+        id: opt.value,
+        amount: parseFloat(opt.dataset.amount),
+        allocated: parseFloat(opt.dataset.allocated),
+        remaining: parseFloat(opt.dataset.remaining),
+        cheque_no: chq.cheque_no || '',
+        cheque_date: chq.cheque_date || '',
+        client_name: chq.client_name || ''
+      };
+      
+      document.getElementById('p_chequeInfo').style.display = 'flex';
+      document.getElementById('p_chqNoDisplay').textContent = performaChequeData.cheque_no || '—';
+      document.getElementById('p_chqDateDisplay').textContent = performaChequeData.cheque_date || '—';
+      document.getElementById('p_clientDisplay').textContent = performaChequeData.client_name || '—';
+      document.getElementById('p_chqAmtDisplay').textContent = `Rs. ${fmt(performaChequeData.amount)}`;
+      document.getElementById('p_chqAllocDisplay').textContent = `Rs. ${fmt(performaChequeData.allocated)}`;
+      document.getElementById('p_chqRemainDisplay').textContent = `Rs. ${fmt(performaChequeData.remaining)}`;
+      
+      // Reset cheque-level deductions when new cheque is selected
+      document.getElementById('p_it_deducted').value = 0;
+      document.getElementById('p_pra_fee').value = 0;
+      document.getElementById('p_other_adj').value = 0;
+      document.getElementById('p_st_deducted').value = 0;
+      document.getElementById('p_st_received').value = 0;
+      document.getElementById('p_extra_st').value = 0;
+      document.getElementById('p_other_ded').value = 0;
+      updateChequeLevelDeductions();
+    })
+    .catch(err => {
+      console.error('Error fetching cheque details:', err);
+      toast('Failed to load cheque details', 'error');
+    });
+}
+
+// Cheque-level deduction calculations
+function updateChequeLevelDeductions() {
+  if (!performaChequeData) return;
+  
+  const chequeAmount = performaChequeData.amount;
+  const itDeducted = parseFloat(document.getElementById('p_it_deducted').value) || 0;
+  const praFee = parseFloat(document.getElementById('p_pra_fee').value) || 0;
+  const otherAdj = parseFloat(document.getElementById('p_other_adj').value) || 0;
+  const stReceived = parseFloat(document.getElementById('p_st_received').value) || 0;
+  
+  // Amount Received = Cheque Amount + Adjustable Deductions - Sales Tax Received From Client
+  const amountReceived = chequeAmount + itDeducted + praFee + otherAdj - stReceived;
+  
+  document.getElementById('p_amtReceived').textContent = `Rs. ${fmt(amountReceived)}`;
 }
 
 async function addJobToPerforma() {
@@ -1226,6 +1304,15 @@ async function savePerforma() {
   if (!performaChequeData) { toast('Please select a cheque','error'); return; }
   if (performaLines.length === 0) { toast('Add at least one job/invoice','error'); return; }
 
+  // Get cheque-level deductions
+  const itDeducted = parseFloat(document.getElementById('p_it_deducted').value) || 0;
+  const praFee = parseFloat(document.getElementById('p_pra_fee').value) || 0;
+  const otherAdj = parseFloat(document.getElementById('p_other_adj').value) || 0;
+  const stDeducted = parseFloat(document.getElementById('p_st_deducted').value) || 0;
+  const stReceived = parseFloat(document.getElementById('p_st_received').value) || 0;
+  const extraSt = parseFloat(document.getElementById('p_extra_st').value) || 0;
+  const otherDed = parseFloat(document.getElementById('p_other_ded').value) || 0;
+
   // Validation: per-line applied amount must not exceed invoice's outstanding balance
   for (const l of performaLines) {
     const applied = (parseFloat(l.cheque_share)||0) + (parseFloat(l.st_received)||0) +
@@ -1250,6 +1337,16 @@ async function savePerforma() {
     month: parseInt(document.getElementById('p_month').value),
     year:  parseInt(document.getElementById('p_year').value),
     lines: performaLines,
+    // Include cheque-level deductions
+    cheque_level_deductions: {
+      it_deducted: itDeducted,
+      pra_fee: praFee,
+      other_adjustable: otherAdj,
+      st_deducted: stDeducted,
+      st_received: stReceived,
+      extra_st_deduction: extraSt,
+      other_deduction: otherDed
+    }
   };
   const res = await api('/api/performa', 'POST', body);
   if (res.ok) {
@@ -1267,6 +1364,15 @@ function clearPerforma() {
   performaChequeData = null;
   document.getElementById('p_cheque').value = '';
   document.getElementById('p_chequeInfo').style.display = 'none';
+  // Reset cheque-level deductions
+  document.getElementById('p_it_deducted').value = 0;
+  document.getElementById('p_pra_fee').value = 0;
+  document.getElementById('p_other_adj').value = 0;
+  document.getElementById('p_st_deducted').value = 0;
+  document.getElementById('p_st_received').value = 0;
+  document.getElementById('p_extra_st').value = 0;
+  document.getElementById('p_other_ded').value = 0;
+  document.getElementById('p_amtReceived').textContent = 'Rs. 0.00';
   renderPerformaLines();
   renderTable1();
   renderTable2();

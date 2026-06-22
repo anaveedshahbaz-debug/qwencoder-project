@@ -1419,6 +1419,20 @@ def api_cheques_list():
         result.append(d)
     return jsonify(result)
 
+@app.route("/api/cheques/<int:cid>", methods=["GET"])
+@login_required
+def api_cheques_detail(cid):
+    """Return full details of a single cheque."""
+    chq = query("SELECT * FROM cheques WHERE id=?", (cid,), one=True)
+    if not chq:
+        return jsonify({"error": "Cheque not found"}), 404
+    d = dict(chq)
+    # how much of this cheque has been allocated to performas already
+    alloc = query("SELECT COALESCE(SUM(total_amount),0) a FROM performas WHERE cheque_id=?", (cid,), one=True)
+    d["allocated"] = float(alloc["a"] or 0) if alloc else 0
+    d["remaining"] = float(chq["amount"] or 0) - d["allocated"]
+    return jsonify(d)
+
 @app.route("/api/cheques", methods=["POST"])
 @login_required
 def api_cheques_create():
@@ -1541,7 +1555,13 @@ def api_performa_detail(perf_id):
 @login_required
 def api_performa_create():
     """Create a Performa: book one cheque against multiple invoices across multiple jobs.
-    Each line auto-creates a linked RECEIPT transaction for that job."""
+    Each line auto-creates a linked RECEIPT transaction for that job.
+    
+    CRITICAL: Receipt booking is JOB-WISE, not invoice-wise.
+    - Invoice level = Detail layer only
+    - Job subtotal level = Actual receipt booking layer
+    - Cheque level = Deduction entry layer
+    """
     if session.get("role") != "admin":
         return jsonify({"error":"Admin only"}), 403
     d = request.get_json()
@@ -1549,6 +1569,16 @@ def api_performa_create():
     month = int(d["month"])
     year  = int(d["year"])
     lines = d.get("lines", [])
+    # Get cheque-level deductions (entered once for the complete cheque)
+    cheque_level = d.get("cheque_level_deductions", {})
+    it_deducted = float(cheque_level.get("it_deducted") or 0)
+    pra_fee = float(cheque_level.get("pra_fee") or 0)
+    other_adjustable = float(cheque_level.get("other_adjustable") or 0)
+    st_deducted = float(cheque_level.get("st_deducted") or 0)
+    st_received = float(cheque_level.get("st_received") or 0)
+    extra_st_deduction = float(cheque_level.get("extra_st_deduction") or 0)
+    other_deduction = float(cheque_level.get("other_deduction") or 0)
+    
     if not lines:
         return jsonify({"error": "No invoice lines provided"}), 400
 
@@ -1594,6 +1624,55 @@ def api_performa_create():
     perf_id = execute("""INSERT INTO performas (performa_no, cheque_id, txn_month, txn_year, total_amount)
         VALUES (?,?,?,?,?)""", (perf_no, cheque_id, month, year, total))
 
+    # Group lines by job for JOB-WISE receipt booking
+    from collections import defaultdict
+    job_lines = defaultdict(list)
+    for l in lines:
+        pid = int(l["project_id"])
+        job_lines[pid].append(l)
+    
+    # Create JOB-WISE receipt bookings (NOT invoice-wise)
+    for pid, job_lns in job_lines.items():
+        # Sum up all values for this job
+        job_cheque_share = sum(float(ln.get("cheque_share") or 0) for ln in job_lns)
+        job_st_r = sum(float(ln.get("st_received") or 0) for ln in job_lns)
+        job_st_d = sum(float(ln.get("st_deducted") or 0) for ln in job_lns)
+        job_est_d = sum(float(ln.get("extra_st_deducted") or 0) for ln in job_lns)
+        job_it_a = sum(float(ln.get("it_amount") or 0) for ln in job_lns)
+        job_oth_a = sum(float(ln.get("other_amount") or 0) for ln in job_lns)
+        
+        # Add cheque-level deductions proportionally to first job or distribute as needed
+        # For simplicity, we add cheque-level deductions to the first job's receipt
+        if pid == list(job_lines.keys())[0]:
+            job_it_a += it_deducted
+            job_oth_a += other_adjustable
+            job_st_d += st_deducted
+            job_st_r += st_received
+            job_est_d += extra_st_deduction
+        
+        # Calculate amount received for this job
+        # Formula: Amount Received = Cheque Share + Adjustable - Non-Adjustable (ST Received)
+        received = job_cheque_share + job_it_a + job_oth_a - job_st_r
+        
+        cheque_row = query("SELECT * FROM cheques WHERE id=?", (cheque_id,), one=True) if cheque_id else None
+        receipt_txn_id = execute("""INSERT INTO transactions
+            (project_id,txn_month,txn_year,txn_type,amount,
+             cheque_no,cheque_date,cheque_amount,
+             it_adjustable,pra_adjustable,other_adjustable,
+             st_received,st_deducted,extra_st_deducted,amount_received,
+             description)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (pid, month, year, "RECEIPT", received,
+             cheque_row["cheque_no"] if cheque_row else "",
+             cheque_row["cheque_date"] if cheque_row else None,
+             job_cheque_share,
+             job_it_a, pra_fee if pid == list(job_lines.keys())[0] else 0, job_oth_a,
+             job_st_r, job_st_d, job_est_d, received,
+             f"Auto-booked via Performa {perf_no}"))
+        
+        rebuild_snapshot(pid, month, year)
+
+    # Insert performa_lines for each invoice (detail layer)
     for l in lines:
         pid = int(l["project_id"])
         inv_txn_id = l.get("invoice_txn_id")
@@ -1606,41 +1685,22 @@ def api_performa_create():
         pst_rate = float(l.get("pst_rate") or 0)
         pst_amt  = float(l.get("pst_amount") or 0)
 
-        # Create the actual RECEIPT transaction for this job (auto-linked)
-        received = cheque_share - st_r - st_d - est_d + it_a + oth_a
-        cheque_row = query("SELECT * FROM cheques WHERE id=?", (cheque_id,), one=True) if cheque_id else None
-        receipt_txn_id = execute("""INSERT INTO transactions
-            (project_id,txn_month,txn_year,txn_type,amount,
-             cheque_no,cheque_date,cheque_amount,
-             it_adjustable,other_adjustable,
-             st_received,st_deducted,extra_st_deducted,amount_received,
-             description)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (pid, month, year, "RECEIPT", received,
-             cheque_row["cheque_no"] if cheque_row else l.get("cheque_no"),
-             cheque_row["cheque_date"] if cheque_row else None,
-             cheque_share,
-             it_a, oth_a, st_r, st_d, est_d, received,
-             f"Auto-booked via Performa {perf_no}"))
-
         execute("""INSERT INTO performa_lines
             (performa_id, project_id, invoice_txn_id, invoice_no, invoice_date,
              invoice_amount, invoice_tax, invoice_gross,
              pst_rate, pst_amount, it_amount, other_amount, cheque_share,
              st_received, st_deducted, extra_st_deducted,
-             client_name, client_ntn, remarks, receipt_txn_id,
+             client_name, client_ntn, remarks,
              t2_invoice_amt, t2_it_formula, t2_pra_formula, t2_oadj_formula,
              t2_sded_formula, t2_srcv_formula, t2_estd_formula, t2_oded_formula, t2_remarks)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (perf_id, pid, inv_txn_id, l.get("invoice_no"), l.get("invoice_date"),
              float(l.get("invoice_amount") or 0), float(l.get("invoice_tax") or 0), float(l.get("invoice_gross") or 0),
              pst_rate, pst_amt, it_a, oth_a, cheque_share,
              st_r, st_d, est_d,
-             l.get("client_name"), l.get("client_ntn"), l.get("remarks"), receipt_txn_id,
+             l.get("client_name"), l.get("client_ntn"), l.get("remarks"),
              float(l.get("t2_invoice_amt") or 0), l.get("t2_it_formula"), l.get("t2_pra_formula"), l.get("t2_oadj_formula"),
              l.get("t2_sded_formula"), l.get("t2_srcv_formula"), l.get("t2_estd_formula"), l.get("t2_oded_formula"), l.get("t2_remarks")))
-
-        rebuild_snapshot(pid, month, year)
 
     return jsonify({"ok": True, "id": perf_id, "performa_no": perf_no})
 
