@@ -1,10 +1,1 @@
-```
-# Logs
-*.log
-
-# Environment
-.env.local
-
-# Editors
-.vscode/
-```
+Nothing needs to be added to the .gitignore file since the changes only include source files (.js and .html) without any build artifacts, dependencies, or temporary files that should be ignored.
