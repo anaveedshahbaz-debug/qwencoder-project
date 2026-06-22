@@ -236,9 +236,11 @@ function buildPeriodFilter(containerId, onChange, opts={}) {
 
 // ── PROJECT SEARCH COMBO ──────────────────────────────────────────────────────
 let _allProjects = [];
+window._allProjects = _allProjects;
 async function loadProjectList() {
   const r = await fetch('/api/projects/list');
   _allProjects = await r.json();
+  window._allProjects = _allProjects;
 }
 
 function setupProjectSearch(inputId, hiddenId, infoId) {
