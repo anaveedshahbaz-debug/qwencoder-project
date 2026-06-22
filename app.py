@@ -1489,6 +1489,27 @@ def api_pending_invoices():
             result.append(d)
     return jsonify(result)
 
+@app.route("/api/performa/invoice_details")
+@login_required
+def api_invoice_details():
+    """Return details for a specific invoice."""
+    invoice_id = int(request.args.get("invoice_id"))
+    inv = query("SELECT * FROM transactions WHERE id=?", (invoice_id,), one=True)
+    if not inv:
+        return jsonify({"error": "Invoice not found"}), 404
+    
+    gross = float(inv["gross_amount"] or 0)
+    applied = query("""
+        SELECT COALESCE(SUM(cheque_share + st_received + st_deducted + extra_st_deducted),0) a
+        FROM performa_lines WHERE invoice_txn_id=?
+    """, (invoice_id,), one=True)
+    applied_amt = float(applied["a"] or 0) if applied else 0
+    balance = gross - applied_amt
+    
+    d = dict(inv)
+    d["balance_amount"] = balance
+    return jsonify(d)
+
 @app.route("/api/performa", methods=["GET"])
 @login_required
 def api_performa_list():
