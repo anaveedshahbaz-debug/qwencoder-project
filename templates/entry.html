@@ -1305,25 +1305,38 @@ function renderTable1() {
       const salesBal = inv.invoice_amount - (inv.st_deducted || 0);
       const grossBal = inv.invoice_gross - inv.balance;
       
+      // Build invoice dropdown for this row
+      let invoiceDropdown = '<select class="form-control" style="font-size:11px;padding:4px" onchange="selectInvoiceForRow(' + inv.origIdx + ', this.value)">';
+      invoiceDropdown += '<option value="">-- Select Invoice --</option>';
+      
+      // Fetch pending invoices for this project to populate dropdown
+      const pendingInvoices = window.pendingInvoicesCache && window.pendingInvoicesCache[inv.project_id] ? window.pendingInvoicesCache[inv.project_id] : [];
+      
+      pendingInvoices.forEach(pInv => {
+        const isSelected = pInv.id == inv.invoice_txn_id ? 'selected' : '';
+        invoiceDropdown += `<option value="${pInv.id}" ${isSelected}>${pInv.invoice_no} - Rs.${fmt(pInv.gross_amount)} (Bal: Rs.${fmt(pInv.balance)})</option>`;
+      });
+      invoiceDropdown += '</select>';
+      
       tr.innerHTML = `
         <td ${isLastInv ? `rowspan="${invoices.length}"` : ''} style="font-weight:600;color:#1565C0">${jobNo}</td>
-        <td style="font-size:11px">${inv.invoice_no}<br><span style="color:#94A3B8">Bal: ${fmt(fullBal)}</span></td>
-        <td><input class="form-control" style="font-size:11px;padding:4px" value="${inv.client_name||''}" onchange="updateTable1Field(${inv.origIdx},'client_name',this.value)"></td>
-        <td class="num">${fmt(inv.invoice_amount)}<br><small style="color:#64748B">(${fmt(fullBal)})</small></td>
-        <td class="num">${fmt(inv.invoice_tax)}<br><small style="color:#64748B">(${fmt(salesBal)})</small></td>
-        <td class="num" style="font-weight:600">${fmt(inv.invoice_gross)}<br><small style="color:#64748B">(${fmt(grossBal)})</small></td>
-        <td style="background:#FEF3C7"><input type="number" class="form-control t1-it" style="font-size:11px;padding:4px;width:80px" value="${inv.it_amount||0}" onchange="updateTable1Field(${inv.origIdx},'it_amount',parseFloat(this.value)||0)"></td>
-        <td style="background:#FEF3C7"><input type="number" class="form-control t1-pra" style="font-size:11px;padding:4px;width:80px" value="${inv.pra_amount||0}" onchange="updateTable1Field(${inv.origIdx},'pra_amount',parseFloat(this.value)||0)"></td>
-        <td style="background:#FEF3C7"><input type="number" class="form-control t1-oadj" style="font-size:11px;padding:4px;width:80px" value="${inv.other_adj||0}" onchange="updateTable1Field(${inv.origIdx},'other_adj',parseFloat(this.value)||0)"></td>
-        <td style="background:#FEF3C7;font-weight:700" class="t1-total-adj">${fmt((inv.it_amount||0)+(inv.pra_amount||0)+(inv.other_adj||0))}</td>
-        <td style="background:#FFE4E6"><input type="number" class="form-control t1-sded" style="font-size:11px;padding:4px;width:80px" value="${inv.st_deducted||0}" onchange="updateTable1Field(${inv.origIdx},'st_deducted',parseFloat(this.value)||0)"></td>
-        <td style="background:#FFE4E6"><input type="number" class="form-control t1-srcv" style="font-size:11px;padding:4px;width:80px" value="${inv.st_received||0}" onchange="updateTable1Field(${inv.origIdx},'st_received',parseFloat(this.value)||0)"></td>
-        <td style="background:#FFE4E6"><input type="number" class="form-control t1-estd" style="font-size:11px;padding:4px;width:80px" value="${inv.extra_st_deducted||0}" onchange="updateTable1Field(${inv.origIdx},'extra_st_deducted',parseFloat(this.value)||0)"></td>
-        <td style="background:#FFE4E6"><input type="number" class="form-control t1-oded" style="font-size:11px;padding:4px;width:80px" value="${inv.other_non_adj||0}" onchange="updateTable1Field(${inv.origIdx},'other_non_adj',parseFloat(this.value)||0)"></td>
-        <td style="background:#DBEAFE;font-weight:600">${fmt(performaChequeData?.remaining||0)}</td>
-        <td style="background:#DCFCE7;font-weight:700" class="t1-amt-rcvd">${fmt(calcAmountReceived(inv))}</td>
-        <td><input class="form-control" style="font-size:11px;padding:4px;width:100px" value="${inv.remarks||''}" onchange="updateTable1Field(${inv.origIdx},'remarks',this.value)"></td>
-        ${invIdx === invoices.length - 1 ? `<td ${`rowspan="${invoices.length}"`}><button class="btn btn-danger btn-sm" onclick="removePerformaLine(${inv.origIdx})">🗑</button></td>` : ''}
+        <td style="font-size:11px">${invoiceDropdown}${inv.invoice_no ? `<br><span style="color:#94A3B8">Bal: ${fmt(fullBal)}</span>` : ''}</td>
+        <td><input class="form-control" style="font-size:11px;padding:4px;color:#1e293b" value="${inv.client_name||''}" onchange="updateTable1Field(${inv.origIdx},'client_name',this.value)"></td>
+        <td class="num" style="color:#1e293b">${inv.invoice_amount > 0 ? fmt(inv.invoice_amount) : '-'}<br><small style="color:#64748B">(${inv.balance > 0 ? fmt(fullBal) : '-'})</small></td>
+        <td class="num" style="color:#1e293b">${inv.invoice_tax > 0 ? fmt(inv.invoice_tax) : '-'}<br><small style="color:#64748B">(${salesBal > 0 ? fmt(salesBal) : '-'})</small></td>
+        <td class="num" style="font-weight:600;color:#1e293b">${inv.invoice_gross > 0 ? fmt(inv.invoice_gross) : '-'}<br><small style="color:#64748B">(${grossBal > 0 ? fmt(grossBal) : '-'})</small></td>
+        <td style="background:#FEF3C7"><input type="number" class="form-control t1-it" style="font-size:11px;padding:4px;width:80px;color:#1e293b" value="${inv.it_amount||0}" onchange="updateTable1Field(${inv.origIdx},'it_amount',parseFloat(this.value)||0)"></td>
+        <td style="background:#FEF3C7"><input type="number" class="form-control t1-pra" style="font-size:11px;padding:4px;width:80px;color:#1e293b" value="${inv.pra_amount||0}" onchange="updateTable1Field(${inv.origIdx},'pra_amount',parseFloat(this.value)||0)"></td>
+        <td style="background:#FEF3C7"><input type="number" class="form-control t1-oadj" style="font-size:11px;padding:4px;width:80px;color:#1e293b" value="${inv.other_adj||0}" onchange="updateTable1Field(${inv.origIdx},'other_adj',parseFloat(this.value)||0)"></td>
+        <td style="background:#FEF3C7;font-weight:700;color:#1e293b" class="t1-total-adj">${fmt((inv.it_amount||0)+(inv.pra_amount||0)+(inv.other_adj||0))}</td>
+        <td style="background:#FFE4E6"><input type="number" class="form-control t1-sded" style="font-size:11px;padding:4px;width:80px;color:#1e293b" value="${inv.st_deducted||0}" onchange="updateTable1Field(${inv.origIdx},'st_deducted',parseFloat(this.value)||0)"></td>
+        <td style="background:#FFE4E6"><input type="number" class="form-control t1-srcv" style="font-size:11px;padding:4px;width:80px;color:#1e293b" value="${inv.st_received||0}" onchange="updateTable1Field(${inv.origIdx},'st_received',parseFloat(this.value)||0)"></td>
+        <td style="background:#FFE4E6"><input type="number" class="form-control t1-estd" style="font-size:11px;padding:4px;width:80px;color:#1e293b" value="${inv.extra_st_deducted||0}" onchange="updateTable1Field(${inv.origIdx},'extra_st_deducted',parseFloat(this.value)||0)"></td>
+        <td style="background:#FFE4E6"><input type="number" class="form-control t1-oded" style="font-size:11px;padding:4px;width:80px;color:#1e293b" value="${inv.other_non_adj||0}" onchange="updateTable1Field(${inv.origIdx},'other_non_adj',parseFloat(this.value)||0)"></td>
+        <td style="background:#DBEAFE;font-weight:600;color:#1e293b">${fmt(performaChequeData?.remaining||0)}</td>
+        <td style="background:#DCFCE7;font-weight:700;color:#1e293b" class="t1-amt-rcvd">${fmt(calcAmountReceived(inv))}</td>
+        <td><input class="form-control" style="font-size:11px;padding:4px;width:100px;color:#1e293b" value="${inv.remarks||''}" onchange="updateTable1Field(${inv.origIdx},'remarks',this.value)"></td>
+        ${invIdx === invoices.length - 1 ? `<td ${`rowspan="${invoices.length}"`} style="vertical-align:middle;text-align:center"><button class="btn btn-primary btn-sm" style="font-size:10px;padding:4px 8px;margin-bottom:4px;display:block;width:100%" onclick="addAnotherInvoiceForJob('${jobNo}', ${inv.project_id})">➕ Add Invoice</button><button class="btn btn-danger btn-sm" style="font-size:10px;padding:4px 8px;display:block;width:100%" onclick="removePerformaLine(${inv.origIdx})">🗑</button></td>` : ''}
       `;
       tbody.appendChild(tr);
       displayRowIdx++;
@@ -1346,6 +1359,78 @@ function updateTable1Field(idx, field, value) {
   }
   renderTable1();
   updateTable1Totals();
+}
+
+async function selectInvoiceForRow(rowIdx, invoiceId) {
+  if (!invoiceId) {
+    // Clear invoice data if deselected
+    performaLines[rowIdx].invoice_txn_id = null;
+    performaLines[rowIdx].invoice_no = '';
+    performaLines[rowIdx].invoice_amount = 0;
+    performaLines[rowIdx].invoice_tax = 0;
+    performaLines[rowIdx].invoice_gross = 0;
+    performaLines[rowIdx].balance = 0;
+    renderTable1();
+    renderTable2();
+    return;
+  }
+  
+  // Fetch invoice details
+  const inv = await fetch(`/api/performa/invoice_details?invoice_id=${invoiceId}`).then(r => r.json());
+  if (inv && inv.id) {
+    performaLines[rowIdx].invoice_txn_id = inv.id;
+    performaLines[rowIdx].invoice_no = inv.invoice_no;
+    performaLines[rowIdx].invoice_amount = inv.amount || 0;
+    performaLines[rowIdx].invoice_tax = inv.tax_amount || 0;
+    performaLines[rowIdx].invoice_gross = inv.gross_amount || 0;
+    performaLines[rowIdx].balance = inv.balance_amount || 0;
+    renderTable1();
+    renderTable2();
+    toast('Invoice selected', 'success');
+  }
+}
+
+function addAnotherInvoiceForJob(jobNo, projectId) {
+  // Find the project info
+  const projInfo = _allProjects.find(p => p.job_no === jobNo);
+  if (!projInfo) {
+    toast('Project not found', 'error');
+    return;
+  }
+  
+  // Add a new empty row for the same job
+  performaLines.push({
+    project_id: projectId,
+    job_no: jobNo,
+    project_name: projInfo.project_name || '',
+    invoice_txn_id: null,
+    invoice_no: '',
+    invoice_date: '',
+    invoice_amount: 0,
+    invoice_tax: 0,
+    invoice_gross: 0,
+    balance: 0,
+    pst_rate: 0, pst_amount: 0,
+    it_amount: 0, pra_amount: 0, other_adj: 0, other_non_adj: 0,
+    cheque_share: 0,
+    st_received: 0, st_deducted: 0, extra_st_deducted: 0,
+    client_name: projInfo.client_name || '',
+    client_ntn: '',
+    remarks: '',
+    t2_invoice_amt: '',
+    t2_it_formula: '',
+    t2_pra_formula: '',
+    t2_oadj_formula: '',
+    t2_sded_formula: '',
+    t2_srcv_formula: '',
+    t2_estd_formula: '',
+    t2_oded_formula: '',
+    t2_remarks: '',
+  });
+  
+  renderTable1();
+  renderTable2();
+  toast('New row added for ' + jobNo + '. Select an invoice from dropdown.', 'success');
 }
 
 function updateTable1Totals() {
@@ -1615,6 +1700,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupProjectSearch('r_projSearch','r_projId','r_projInfo');
   setupProjectSearch('e_projSearch','e_projId','e_projInfo');
   setupProjectSearch('p_projSearch','p_projId',null);
+  
+  // Pre-fetch pending invoices for all projects when page loads (for dropdown caching)
+  window.pendingInvoicesCache = {};
+  _allProjects.forEach(async p => {
+    try {
+      const res = await fetch(`/api/performa/pending_invoices?project_id=${p.id}`);
+      const data = await res.json();
+      window.pendingInvoicesCache[p.id] = data;
+    } catch(e) {
+      console.error('Error fetching invoices for project', p.id, e);
+    }
+  });
+  
   document.getElementById('b_projSearch').addEventListener('projectSelected', updateInvoiceNo);
   loadBillingTable(); loadReceiptTable(); loadExpenseTable();
   loadChequeTable(); loadChequeDropdown(); loadPerformaHistory();
