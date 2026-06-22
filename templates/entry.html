@@ -339,8 +339,8 @@
   <div class="card-header"><span class="card-title">🧾 New Sales Tax Performa — Book Cheque Against Invoices</span></div>
 
   <div class="form-row form-row-3">
+    <div class="form-group"><label class="form-label">Financial Year</label><select id="p_fy" class="form-control" onchange="onFYChange()"></select></div>
     <div class="form-group"><label class="form-label">Month *</label><select id="p_month" class="form-control" onchange="onPerformaPeriodChange()"></select></div>
-    <div class="form-group"><label class="form-label">Year *</label><select id="p_year" class="form-control" onchange="onPerformaPeriodChange()"></select></div>
     <div class="form-group"><label class="form-label">Select Cheque *</label>
       <select id="p_cheque" class="form-control" onchange="onChequeSelected()"></select>
     </div>
@@ -363,26 +363,86 @@
     </div>
   </div>
 
-  <div class="table-wrap" style="margin-top:16px;overflow-x:auto">
-    <table style="min-width:1500px" id="performaLinesTable">
-      <thead><tr>
-        <th>Job No.</th><th>Invoice</th><th style="min-width:140px">Client</th>
-        <th class="num">Inv. Amount</th><th class="num">GST</th><th class="num">Gross</th>
-        <th style="min-width:90px">PST %</th><th class="num">PST Amt</th>
-        <th class="num">IT (manual)</th><th class="num">Other</th>
-        <th class="num">ST Received</th><th class="num">ST Deducted</th><th class="num">Extra ST Ded.</th>
-        <th class="num" style="background:#DBEAFE">Cheque Share</th>
-        <th>Remarks</th><th></th>
-      </tr></thead>
-      <tbody id="performaLinesBody"></tbody>
+  <!-- TABLE 1: Merged Deductions Summary -->
+  <h4 style="margin-top:20px;margin-bottom:10px;color:#1565C0">📊 Table 1: Invoice Selection & Merged Deductions Summary</h4>
+  <div class="table-wrap" style="overflow-x:auto">
+    <table style="min-width:1600px" id="performaTable1">
+      <thead>
+        <tr>
+          <th rowspan="2">Job No.</th>
+          <th rowspan="2">Invoice</th>
+          <th rowspan="2" style="min-width:140px">Client</th>
+          <th rowspan="2">Full Amount<br><small style="font-weight:normal;color:#64748B">(Balance)</small></th>
+          <th rowspan="2">Full Sales<br><small style="font-weight:normal;color:#64748B">(Balance)</small></th>
+          <th rowspan="2">Full Gross<br><small style="font-weight:normal;color:#64748B">(Balance)</small></th>
+          <th colspan="4" style="background:#FEF3C7;border:1px solid #FCD34D">Adjustable Deductions</th>
+          <th colspan="4" style="background:#FFE4E6;border:1px solid #FECDD3">Non-Adjustable Deductions</th>
+          <th rowspan="2" style="background:#DBEAFE">Cheque Amount</th>
+          <th rowspan="2" style="background:#DCFCE7">Amount Received</th>
+          <th rowspan="2">Remarks</th>
+          <th rowspan="2"></th>
+        </tr>
+        <tr>
+          <th style="background:#FEF3C7;border:1px solid #FCD34D">Income Tax</th>
+          <th style="background:#FEF3C7;border:1px solid #FCD34D">PRA Fees</th>
+          <th style="background:#FEF3C7;border:1px solid #FCD34D">Other Adj.</th>
+          <th style="background:#FEF3C7;border:1px solid #FCD34D;font-weight:700">Total Adj.</th>
+          <th style="background:#FFE4E6;border:1px solid #FECDD3">Sales Deducted</th>
+          <th style="background:#FFE4E6;border:1px solid #FECDD3">Sales Received</th>
+          <th style="background:#FFE4E6;border:1px solid #FECDD3">Extra ST Ded.</th>
+          <th style="background:#FFE4E6;border:1px solid #FECDD3">Other Ded.</th>
+        </tr>
+      </thead>
+      <tbody id="performaTable1Body"></tbody>
     </table>
   </div>
 
-  <div class="totals-bar" id="performaTotals" style="margin-top:8px"></div>
+  <div class="totals-bar" id="performaTable1Totals" style="margin-top:8px;background:#FEF3C7"></div>
+
+  <!-- TABLE 2: Detailed Invoice-wise Entry with Formulas -->
+  <h4 style="margin-top:20px;margin-bottom:10px;color:#1565C0">📝 Table 2: Invoice-wise Detailed Entry (Formula Enabled)</h4>
+  <div style="margin-bottom:8px;font-size:12px;color:#64748B">
+    💡 Tip: Use formulas like <code>=A*0.16</code> for IT, <code>=B*0.15</code> for PRA, etc. Column references: 
+    <strong>A</strong>=Full Amount, <strong>B</strong>=Full Sales, <strong>C</strong>=Full Gross, 
+    <strong>D</strong>=Cheque Amount, <strong>E</strong>=Sales Received
+  </div>
+  <div class="table-wrap" style="overflow-x:auto">
+    <table style="min-width:1800px" id="performaTable2">
+      <thead>
+        <tr>
+          <th rowspan="2">Job No.</th>
+          <th rowspan="2">Invoice</th>
+          <th rowspan="2" style="min-width:140px">Client</th>
+          <th rowspan="2" style="background:#EFF6FF">Invoice Amount<br><small style="font-weight:normal;color:#64748B">(Enter manually)</small></th>
+          <th colspan="4" style="background:#FEF3C7;border:1px solid #FCD34D">Adjustable Deductions</th>
+          <th colspan="4" style="background:#FFE4E6;border:1px solid #FECDD3">Non-Adjustable Deductions</th>
+          <th rowspan="2" style="background:#DBEAFE">Cheque Amount</th>
+          <th rowspan="2" style="background:#DCFCE7">Amount Received</th>
+          <th rowspan="2">Subtotal</th>
+          <th rowspan="2">Remarks</th>
+        </tr>
+        <tr>
+          <th style="background:#FEF3C7;border:1px solid #FCD34D">Income Tax<br><small style="font-weight:normal">(e.g., =A*0.16)</small></th>
+          <th style="background:#FEF3C7;border:1px solid #FCD34D">PRA Fees<br><small style="font-weight:normal">(e.g., =A*0.15)</small></th>
+          <th style="background:#FEF3C7;border:1px solid #FCD34D">Other Adj.</th>
+          <th style="background:#FEF3C7;border:1px solid #FCD34D;font-weight:700">Total Adj.</th>
+          <th style="background:#FFE4E6;border:1px solid #FECDD3">Sales Deducted</th>
+          <th style="background:#FFE4E6;border:1px solid #FECDD3">Sales Received</th>
+          <th style="background:#FFE4E6;border:1px solid #FECDD3">Extra ST Ded.</th>
+          <th style="background:#FFE4E6;border:1px solid #FECDD3">Other Ded.</th>
+        </tr>
+      </thead>
+      <tbody id="performaTable2Body"></tbody>
+      <tfoot id="performaTable2Footer"></tfoot>
+    </table>
+  </div>
+
+  <div class="totals-bar" id="performaTable2Totals" style="margin-top:8px;background:#DCFCE7"></div>
 
   <div style="display:flex;gap:8px;margin-top:16px">
     <button class="btn btn-success" onclick="savePerforma()">💾 Save Performa (Auto-creates Receipts)</button>
     <button class="btn btn-gray btn-sm" onclick="clearPerforma()">Clear All</button>
+    <button class="btn btn-primary btn-sm" onclick="syncTable2FromTable1()">🔄 Sync Table 2 from Table 1</button>
   </div>
 </div>
 
@@ -825,6 +885,60 @@ async function deleteSelectedCheque() {
 // ── PERFORMA ───────────────────────────────────────────────────────────────────
 let performaLines = []; // local working array of line objects
 let performaChequeData = null;
+let table1Data = []; // Table 1 merged data
+let table2Data = []; // Table 2 detailed data with formulas
+
+// FY 2025-26: July 2025 to June 2026
+const FY_2025_26_MONTHS = [
+  {m:7, name:'July'}, {m:8, name:'August'}, {m:9, name:'September'},
+  {m:10, name:'October'}, {m:11, name:'November'}, {m:12, name:'December'},
+  {m:1, name:'January'}, {m:2, name:'February'}, {m:3, name:'March'},
+  {m:4, name:'April'}, {m:5, name:'May'}, {m:6, name:'June'}
+];
+
+function initFYDropdown() {
+  const fySel = document.getElementById('p_fy');
+  if (!fySel) return;
+  fySel.innerHTML = '<option value="2025">FY 2025-26</option>';
+  fySel.value = '2025';
+  initMonthDropdownForFY('2025');
+}
+
+function initMonthDropdownForFY(fyStart) {
+  const mSel = document.getElementById('p_month');
+  const ySel = document.getElementById('p_year');
+  if (!mSel || !ySel) return;
+  
+  mSel.innerHTML = '';
+  ySel.innerHTML = '';
+  
+  FY_2025_26_MONTHS.forEach(item => {
+    const opt = document.createElement('option');
+    opt.value = item.m;
+    opt.textContent = item.name;
+    mSel.appendChild(opt);
+  });
+  
+  // Year dropdown - just show FY year range
+  const startYear = parseInt(fyStart);
+  const endYear = startYear + 1;
+  for (let yr = startYear; yr <= endYear; yr++) {
+    const opt = document.createElement('option');
+    opt.value = yr;
+    opt.textContent = yr;
+    ySel.appendChild(opt);
+  }
+  
+  // Set default to first month and start year
+  mSel.value = '7';
+  ySel.value = fyStart;
+}
+
+function onFYChange() {
+  const fyStart = document.getElementById('p_fy').value;
+  initMonthDropdownForFY(fyStart);
+  onPerformaPeriodChange();
+}
 
 async function onPerformaPeriodChange() {
   if (performaLines.length > 0) {
@@ -832,7 +946,11 @@ async function onPerformaPeriodChange() {
       return;
     }
     performaLines = [];
+    table1Data = [];
+    table2Data = [];
     renderPerformaLines();
+    renderTable1();
+    renderTable2();
   }
   loadChequeDropdown();
 }
@@ -915,18 +1033,30 @@ async function addJobToPerforma() {
       invoice_gross: inv.gross_amount,
       balance: inv.balance,
       pst_rate: 0, pst_amount: 0,
-      it_amount: 0, other_amount: 0,
+      it_amount: 0, pra_amount: 0, other_adj: 0, other_non_adj: 0,
       cheque_share: 0,
       st_received: 0, st_deducted: 0, extra_st_deducted: 0,
       client_name: projInfo?.client_name || '',
       client_ntn: '',
       remarks: '',
+      // Table 2 specific fields
+      t2_invoice_amt: '',
+      t2_it_formula: '',
+      t2_pra_formula: '',
+      t2_oadj_formula: '',
+      t2_sded_formula: '',
+      t2_srcv_formula: '',
+      t2_estd_formula: '',
+      t2_oded_formula: '',
+      t2_remarks: '',
     });
   });
 
   document.getElementById('p_projSearch').value = '';
   document.getElementById('p_projId').value = '';
   renderPerformaLines();
+  renderTable1();
+  renderTable2();
 }
 
 function renderPerformaLines() {
@@ -1035,10 +1165,286 @@ async function savePerforma() {
 
 function clearPerforma() {
   performaLines = [];
+  table1Data = [];
+  table2Data = [];
   performaChequeData = null;
   document.getElementById('p_cheque').value = '';
   document.getElementById('p_chequeInfo').style.display = 'none';
   renderPerformaLines();
+  renderTable1();
+  renderTable2();
+}
+
+// ── TABLE 1: Merged Deductions Summary ────────────────────────────────────────
+function renderTable1() {
+  const tbody = document.getElementById('performaTable1Body');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  
+  if (performaLines.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="15" style="text-align:center;color:#94A3B8;padding:20px">No jobs added yet. Use "Add Job" button above.</td></tr>';
+    updateTable1Totals();
+    return;
+  }
+  
+  // Group by job for merged deductions display
+  const jobGroups = {};
+  performaLines.forEach((l, idx) => {
+    const key = l.job_no;
+    if (!jobGroups[key]) jobGroups[key] = [];
+    jobGroups[key].push({...l, origIdx: idx});
+  });
+  
+  let rowIdx = 0;
+  Object.keys(jobGroups).forEach(jobNo => {
+    const invoices = jobGroups[jobNo];
+    
+    invoices.forEach((inv, invIdx) => {
+      const tr = document.createElement('tr');
+      const isLastInv = invIdx === invoices.length - 1;
+      
+      // Calculate balances
+      const fullBal = inv.balance;
+      const salesBal = inv.invoice_amount - (inv.st_deducted || 0);
+      const grossBal = inv.invoice_gross - inv.balance;
+      
+      tr.innerHTML = `
+        <td ${isLastInv ? `rowspan="${invoices.length}"` : ''} style="font-weight:600;color:#1565C0">${jobNo}</td>
+        <td style="font-size:11px">${inv.invoice_no}<br><span style="color:#94A3B8">Bal: ${fmt(fullBal)}</span></td>
+        <td><input class="form-control" style="font-size:11px;padding:4px" value="${inv.client_name||''}" onchange="updateTable1Field(${rowIdx},'client_name',this.value)"></td>
+        <td class="num">${fmt(inv.invoice_amount)}<br><small style="color:#64748B">(${fmt(fullBal)})</small></td>
+        <td class="num">${fmt(inv.invoice_tax)}<br><small style="color:#64748B">(${fmt(salesBal)})</small></td>
+        <td class="num" style="font-weight:600">${fmt(inv.invoice_gross)}<br><small style="color:#64748B">(${fmt(grossBal)})</small></td>
+        <td style="background:#FEF3C7"><input type="number" class="form-control t1-it" style="font-size:11px;padding:4px;width:80px" value="${inv.it_amount||0}" onchange="updateTable1Field(${rowIdx},'it_amount',parseFloat(this.value)||0)"></td>
+        <td style="background:#FEF3C7"><input type="number" class="form-control t1-pra" style="font-size:11px;padding:4px;width:80px" value="${inv.pra_amount||0}" onchange="updateTable1Field(${rowIdx},'pra_amount',parseFloat(this.value)||0)"></td>
+        <td style="background:#FEF3C7"><input type="number" class="form-control t1-oadj" style="font-size:11px;padding:4px;width:80px" value="${inv.other_adj||0}" onchange="updateTable1Field(${rowIdx},'other_adj',parseFloat(this.value)||0)"></td>
+        <td style="background:#FEF3C7;font-weight:700" class="t1-total-adj">${fmt((inv.it_amount||0)+(inv.pra_amount||0)+(inv.other_adj||0))}</td>
+        <td style="background:#FFE4E6"><input type="number" class="form-control t1-sded" style="font-size:11px;padding:4px;width:80px" value="${inv.st_deducted||0}" onchange="updateTable1Field(${rowIdx},'st_deducted',parseFloat(this.value)||0)"></td>
+        <td style="background:#FFE4E6"><input type="number" class="form-control t1-srcv" style="font-size:11px;padding:4px;width:80px" value="${inv.st_received||0}" onchange="updateTable1Field(${rowIdx},'st_received',parseFloat(this.value)||0)"></td>
+        <td style="background:#FFE4E6"><input type="number" class="form-control t1-estd" style="font-size:11px;padding:4px;width:80px" value="${inv.extra_st_deducted||0}" onchange="updateTable1Field(${rowIdx},'extra_st_deducted',parseFloat(this.value)||0)"></td>
+        <td style="background:#FFE4E6"><input type="number" class="form-control t1-oded" style="font-size:11px;padding:4px;width:80px" value="${inv.other_non_adj||0}" onchange="updateTable1Field(${rowIdx},'other_non_adj',parseFloat(this.value)||0)"></td>
+        <td style="background:#DBEAFE;font-weight:600">${fmt(performaChequeData?.remaining||0)}</td>
+        <td style="background:#DCFCE7;font-weight:700" class="t1-amt-rcvd">${fmt(calcAmountReceived(inv))}</td>
+        <td><input class="form-control" style="font-size:11px;padding:4px;width:100px" value="${inv.remarks||''}" onchange="updateTable1Field(${rowIdx},'remarks',this.value)"></td>
+        ${invIdx === invoices.length - 1 ? `<td ${`rowspan="${invoices.length}"`}><button class="btn btn-danger btn-sm" onclick="removePerformaLine(${inv.origIdx})">🗑</button></td>` : ''}
+      `;
+      tbody.appendChild(tr);
+      rowIdx++;
+    });
+  });
+  
+  updateTable1Totals();
+}
+
+function calcAmountReceived(line) {
+  // Amount Received = Cheque Amount - (Adjustable totals) - Sales Tax Received
+  const adjTotal = (line.it_amount||0) + (line.pra_amount||0) + (line.other_adj||0);
+  const nonAdjSalesTax = line.st_received||0;
+  return (performaChequeData?.remaining||0) - adjTotal - nonAdjSalesTax;
+}
+
+function updateTable1Field(idx, field, value) {
+  if (performaLines[idx]) {
+    performaLines[idx][field] = value;
+  }
+  renderTable1();
+  updateTable1Totals();
+}
+
+function updateTable1Totals() {
+  const totalIT = performaLines.reduce((s,l) => s + (parseFloat(l.it_amount)||0), 0);
+  const totalPRA = performaLines.reduce((s,l) => s + (parseFloat(l.pra_amount)||0), 0);
+  const totalOtherAdj = performaLines.reduce((s,l) => s + (parseFloat(l.other_adj)||0), 0);
+  const totalSTRecvd = performaLines.reduce((s,l) => s + (parseFloat(l.st_received)||0), 0);
+  const totalSTDed = performaLines.reduce((s,l) => s + (parseFloat(l.st_deducted)||0), 0);
+  const totalESTD = performaLines.reduce((s,l) => s + (parseFloat(l.extra_st_deducted)||0), 0);
+  
+  const bar = document.getElementById('performaTable1Totals');
+  if (!bar) return;
+  
+  bar.innerHTML = `
+    <span>Invoices: <strong>${performaLines.length}</strong></span>
+    <span>Total IT: <strong>${cr(totalIT)}</strong></span>
+    <span>Total PRA: <strong>${cr(totalPRA)}</strong></span>
+    <span>Total Other Adj: <strong>${cr(totalOtherAdj)}</strong></span>
+    <span>Total ST Received: <strong>${cr(totalSTRecvd)}</strong></span>
+    <span>Total ST Deducted: <strong>${cr(totalSTDed)}</strong></span>
+  `;
+}
+
+// ── TABLE 2: Detailed Invoice-wise Entry with Formulas ────────────────────────
+function renderTable2() {
+  const tbody = document.getElementById('performaTable2Body');
+  const tfoot = document.getElementById('performaTable2Footer');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  
+  if (performaLines.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;color:#94A3B8;padding:20px">No jobs added yet. Use "Add Job" button above or sync from Table 1.</td></tr>';
+    if (tfoot) tfoot.innerHTML = '';
+    updateTable2Totals();
+    return;
+  }
+  
+  performaLines.forEach((l, idx) => {
+    const tr = document.createElement('tr');
+    
+    tr.innerHTML = `
+      <td style="font-weight:600;color:#1565C0">${l.job_no}</td>
+      <td style="font-size:11px">${l.invoice_no}</td>
+      <td><input class="form-control" style="font-size:11px;padding:4px" value="${l.client_name||''}" onchange="updateTable2Field(${idx},'client_name',this.value)"></td>
+      <td style="background:#EFF6FF"><input type="number" class="form-control t2-invoice-amt" style="font-size:11px;padding:4px;width:90px" value="${l.t2_invoice_amt||''}" placeholder="Enter manually" onchange="updateTable2Field(${idx},'t2_invoice_amt',this.value)"></td>
+      <td style="background:#FEF3C7"><input type="text" class="form-control t2-it-formula" style="font-size:11px;padding:4px;width:90px" value="${l.t2_it_formula||''}" placeholder="=A*0.16" onchange="updateTable2Formula(${idx},'t2_it_formula',this.value)"></td>
+      <td style="background:#FEF3C7"><input type="text" class="form-control t2-pra-formula" style="font-size:11px;padding:4px;width:90px" value="${l.t2_pra_formula||''}" placeholder="=A*0.15" onchange="updateTable2Formula(${idx},'t2_pra_formula',this.value)"></td>
+      <td style="background:#FEF3C7"><input type="text" class="form-control t2-oadj-formula" style="font-size:11px;padding:4px;width:90px" value="${l.t2_oadj_formula||''}" onchange="updateTable2Formula(${idx},'t2_oadj_formula',this.value)"></td>
+      <td style="background:#FEF3C7;font-weight:700" class="t2-total-adj">${fmt(calcT2AdjustableTotal(l))}</td>
+      <td style="background:#FFE4E6"><input type="text" class="form-control t2-sded-formula" style="font-size:11px;padding:4px;width:90px" value="${l.t2_sded_formula||''}" onchange="updateTable2Formula(${idx},'t2_sded_formula',this.value)"></td>
+      <td style="background:#FFE4E6"><input type="text" class="form-control t2-srcv-formula" style="font-size:11px;padding:4px;width:90px" value="${l.t2_srcv_formula||''}" onchange="updateTable2Formula(${idx},'t2_srcv_formula',this.value)"></td>
+      <td style="background:#FFE4E6"><input type="text" class="form-control t2-estd-formula" style="font-size:11px;padding:4px;width:90px" value="${l.t2_estd_formula||''}" onchange="updateTable2Formula(${idx},'t2_estd_formula',this.value)"></td>
+      <td style="background:#FFE4E6"><input type="text" class="form-control t2-oded-formula" style="font-size:11px;padding:4px;width:90px" value="${l.t2_oded_formula||''}" onchange="updateTable2Formula(${idx},'t2_oded_formula',this.value)"></td>
+      <td style="background:#DBEAFE;font-weight:600">${fmt(performaChequeData?.remaining||0)}</td>
+      <td style="background:#DCFCE7;font-weight:700" class="t2-amt-rcvd">${fmt(calcT2AmountReceived(l))}</td>
+      <td style="font-weight:600" class="t2-subtotal">${fmt(calcT2Subtotal(l))}</td>
+      <td><input class="form-control" style="font-size:11px;padding:4px;width:100px" value="${l.t2_remarks||''}" onchange="updateTable2Field(${idx},'t2_remarks',this.value)"></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  
+  // Footer with grand totals
+  if (tfoot) {
+    const totalInvoiceAmt = performaLines.reduce((s,l) => s + (parseFloat(l.t2_invoice_amt)||0), 0);
+    const totalAdj = performaLines.reduce((s,l) => s + calcT2AdjustableTotal(l), 0);
+    const totalNonAdj = performaLines.reduce((s,l) => s + calcT2NonAdjustableTotal(l), 0);
+    const totalRcvd = performaLines.reduce((s,l) => s + calcT2AmountReceived(l), 0);
+    const totalSubtotal = performaLines.reduce((s,l) => s + calcT2Subtotal(l), 0);
+    
+    tfoot.innerHTML = `
+      <tr style="background:#F1F5F9;font-weight:700">
+        <td colspan="3">Grand Total</td>
+        <td class="num">${fmt(totalInvoiceAmt)}</td>
+        <td colspan="4" class="num">${fmt(totalAdj)}</td>
+        <td colspan="4" class="num">${fmt(totalNonAdj)}</td>
+        <td class="num">${fmt(performaLines.length * (performaChequeData?.remaining||0))}</td>
+        <td class="num">${fmt(totalRcvd)}</td>
+        <td class="num">${fmt(totalSubtotal)}</td>
+        <td></td>
+      </tr>
+    `;
+  }
+  
+  updateTable2Totals();
+}
+
+function evaluateFormula(formula, context) {
+  // A=Full Amount, B=Full Sales, C=Full Gross, D=Cheque Amount, E=Sales Received
+  if (!formula || !formula.startsWith('=')) return parseFloat(formula)||0;
+  
+  let expr = formula.substring(1); // Remove '='
+  
+  // Replace column letters with values
+  expr = expr.replace(/A/g, context.A || 0);
+  expr = expr.replace(/B/g, context.B || 0);
+  expr = expr.replace(/C/g, context.C || 0);
+  expr = expr.replace(/D/g, context.D || 0);
+  expr = expr.replace(/E/g, context.E || 0);
+  
+  try {
+    // Safe evaluation using Function constructor
+    return Function('"use strict";return (' + expr + ')')();
+  } catch(e) {
+    return 0;
+  }
+}
+
+function getT2Context(line, idx) {
+  return {
+    A: parseFloat(line.t2_invoice_amt) || 0,
+    B: parseFloat(line.invoice_tax) || 0,
+    C: parseFloat(line.invoice_gross) || 0,
+    D: performaChequeData?.remaining || 0,
+    E: parseFloat(line.t2_srcv_formula) || 0
+  };
+}
+
+function calcT2AdjustableTotal(line) {
+  const ctx = getT2Context(line);
+  const it = evaluateFormula(line.t2_it_formula||'', ctx);
+  const pra = evaluateFormula(line.t2_pra_formula||'', ctx);
+  const oadj = evaluateFormula(line.t2_oadj_formula||'', ctx);
+  return it + pra + oadj;
+}
+
+function calcT2NonAdjustableTotal(line) {
+  const ctx = getT2Context(line);
+  const sded = evaluateFormula(line.t2_sded_formula||'', ctx);
+  const srcv = evaluateFormula(line.t2_srcv_formula||'', ctx);
+  const estd = evaluateFormula(line.t2_estd_formula||'', ctx);
+  const oded = evaluateFormula(line.t2_oded_formula||'', ctx);
+  return sded + srcv + estd + oded;
+}
+
+function calcT2AmountReceived(line) {
+  const chequeAmt = performaChequeData?.remaining || 0;
+  const adjTotal = calcT2AdjustableTotal(line);
+  const srcv = evaluateFormula(line.t2_srcv_formula||'', getT2Context(line));
+  return chequeAmt - adjTotal - srcv;
+}
+
+function calcT2Subtotal(line) {
+  return calcT2AmountReceived(line);
+}
+
+function updateTable2Field(idx, field, value) {
+  if (performaLines[idx]) {
+    performaLines[idx][field] = value;
+  }
+  renderTable2();
+  updateTable2Totals();
+}
+
+function updateTable2Formula(idx, field, value) {
+  if (performaLines[idx]) {
+    performaLines[idx][field] = value;
+  }
+  renderTable2();
+  updateTable2Totals();
+}
+
+function updateTable2Totals() {
+  const bar = document.getElementById('performaTable2Totals');
+  if (!bar) return;
+  
+  const totalInvAmt = performaLines.reduce((s,l) => s + (parseFloat(l.t2_invoice_amt)||0), 0);
+  const totalAdj = performaLines.reduce((s,l) => s + calcT2AdjustableTotal(l), 0);
+  const totalRcvd = performaLines.reduce((s,l) => s + calcT2AmountReceived(l), 0);
+  const totalSubtotal = performaLines.reduce((s,l) => s + calcT2Subtotal(l), 0);
+  
+  bar.innerHTML = `
+    <span>Invoices: <strong>${performaLines.length}</strong></span>
+    <span>Total Invoice Amount: <strong>${cr(totalInvAmt)}</strong></span>
+    <span>Total Adjustable: <strong>${cr(totalAdj)}</strong></span>
+    <span>Total Amount Received: <strong>${cr(totalRcvd)}</strong></span>
+    <span>Grand Subtotal: <strong>${cr(totalSubtotal)}</strong></span>
+  `;
+}
+
+function syncTable2FromTable1() {
+  // Copy data from performaLines (which Table 1 uses) to Table 2 fields
+  performaLines.forEach((l, idx) => {
+    // Set invoice amount as manual entry field
+    l.t2_invoice_amt = l.invoice_amount;
+    // Set default formulas based on column A (invoice amount)
+    l.t2_it_formula = '=A*0.16';
+    l.t2_pra_formula = '=A*0.15';
+    l.t2_oadj_formula = '';
+    l.t2_sded_formula = '';
+    l.t2_srcv_formula = '';
+    l.t2_estd_formula = '';
+    l.t2_oded_formula = '';
+    l.t2_remarks = l.remarks || '';
+  });
+  renderTable2();
+  toast('Table 2 synced from Table 1 data', 'success');
 }
 
 async function loadPerformaHistory() {
@@ -1102,7 +1508,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   buildMonthSelect('r_month', d.getMonth()+1); buildYearSelect('r_year', d.getFullYear());
   buildMonthSelect('e_month', d.getMonth()+1); buildYearSelect('e_year', d.getFullYear());
   buildMonthSelect('c_month', d.getMonth()+1); buildYearSelect('c_year', d.getFullYear());
-  buildMonthSelect('p_month', d.getMonth()+1); buildYearSelect('p_year', d.getFullYear());
+  // Initialize FY dropdown for Performa tab instead of regular month/year
+  initFYDropdown();
   buildMonthSelectAppend('ph_month'); buildYearSelect('ph_year', d.getFullYear());
   document.getElementById('b_invDate').value  = d.toISOString().split('T')[0];
   document.getElementById('r_chqDate').value  = d.toISOString().split('T')[0];
