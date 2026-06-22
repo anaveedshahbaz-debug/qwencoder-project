@@ -1897,6 +1897,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Sync local _allProjects reference with the global one from app.js
   _allProjects = window._allProjects || [];
   
+  // Ensure projects are loaded (fallback in case app.js didn't load them)
+  if (!_allProjects || _allProjects.length === 0) {
+    try {
+      const res = await fetch('/api/projects/list');
+      _allProjects = await res.json();
+      window._allProjects = _allProjects;
+    } catch(e) {
+      console.error('Failed to load projects:', e);
+      toast('Failed to load projects. Please refresh.', 'error');
+      return;
+    }
+  }
+  
   buildMonthSelect('b_month', d.getMonth()+1); buildYearSelect('b_year', d.getFullYear());
   buildMonthSelect('r_month', d.getMonth()+1); buildYearSelect('r_year', d.getFullYear());
   buildMonthSelect('e_month', d.getMonth()+1); buildYearSelect('e_year', d.getFullYear());
