@@ -50,6 +50,8 @@ html,body{height:100%;font-family:'Segoe UI',system-ui,sans-serif;font-size:14px
 table{width:100%;border-collapse:collapse;font-size:12px}
 thead th{background:var(--primary);color:#fff;padding:10px 12px;text-align:left;font-weight:600;white-space:nowrap;position:sticky;top:0;z-index:2}
 thead th.num{text-align:right}
+/* Improved readability for colored header backgrounds */
+thead th[style*="background:#FEF3C7"], thead th[style*="background:#FFE4E6"], thead th[style*="background:#DBEAFE"], thead th[style*="background:#DCFCE7"]{color:#1E293B!important}
 tbody tr{transition:background .1s;cursor:pointer}
 tbody tr:nth-child(even){background:#F8FAFC}
 tbody tr:hover{background:#EFF6FF}
@@ -73,7 +75,7 @@ tbody td.num{text-align:right;font-variant-numeric:tabular-nums}
 .form-control:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(33,150,243,.12)}
 select.form-control{cursor:pointer}
 .form-row{display:grid;gap:12px}
-.form-row-2{grid-template-columns:1fr 1fr}.form-row-3{grid-template-columns:1fr 1fr 1fr}
+.form-row-2{grid-template-columns:1fr 1fr}.form-row-3{grid-template-columns:1fr 1fr 1fr}.form-row-4{grid-template-columns:1fr 1fr 1fr 1fr}
 .calc-box{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;padding:10px 14px;margin:8px 0;display:flex;gap:24px;align-items:center}
 .calc-box.receipt-calc{background:#EFF6FF;border-color:#BFDBFE}
 .calc-item{display:flex;flex-direction:column;gap:2px}

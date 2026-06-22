@@ -1,4 +1,10 @@
 ```
-__pycache__/
-*.pyc
+# Logs
+*.log
+
+# Environment
+.env.local
+
+# Editors
+.vscode/
 ```

@@ -1,14 +1,17 @@
+OpenBLAS WARNING - could not determine the L2 cache size on this system, assuming 256k
 
 ============================================================
-NESPAK Project Monitoring System
+  NESPAK Project Monitoring System
 ============================================================
-Local:   http://localhost:5000
-Network: http://21.0.9.31:5000
+  This computer:  http://localhost:5000
+  Other computer: http://21.0.10.226:5000
 
-Admin password: admin123
-Guest password: guest123
+  Login:
+    Admin password: admin123
+    Guest password: guest123
 
-Press Ctrl+C to stop the server.
+  Keep this window open while using the system.
+  Press Ctrl+C to stop the server.
 ============================================================
 
  * Serving Flask app 'app'

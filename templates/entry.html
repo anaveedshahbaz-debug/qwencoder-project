@@ -338,9 +338,10 @@
 <div class="card">
   <div class="card-header"><span class="card-title">🧾 New Sales Tax Performa — Book Cheque Against Invoices</span></div>
 
-  <div class="form-row form-row-3">
+  <div class="form-row form-row-4">
     <div class="form-group"><label class="form-label">Financial Year</label><select id="p_fy" class="form-control" onchange="onFYChange()"></select></div>
     <div class="form-group"><label class="form-label">Month *</label><select id="p_month" class="form-control" onchange="onPerformaPeriodChange()"></select></div>
+    <div class="form-group"><label class="form-label">Year</label><select id="p_year" class="form-control" onchange="onPerformaPeriodChange()"></select></div>
     <div class="form-group"><label class="form-label">Select Cheque *</label>
       <select id="p_cheque" class="form-control" onchange="onChequeSelected()"></select>
     </div>
@@ -888,8 +889,14 @@ let performaChequeData = null;
 let table1Data = []; // Table 1 merged data
 let table2Data = []; // Table 2 detailed data with formulas
 
-// FY 2025-26: July 2025 to June 2026
-const FY_2025_26_MONTHS = [
+// FY Options and Month mappings
+const FY_OPTIONS = [
+  { startYear: 2024, label: 'FY 2024-25' },
+  { startYear: 2025, label: 'FY 2025-26' },
+  { startYear: 2026, label: 'FY 2026-27' }
+];
+
+const FY_MONTHS = [
   {m:7, name:'July'}, {m:8, name:'August'}, {m:9, name:'September'},
   {m:10, name:'October'}, {m:11, name:'November'}, {m:12, name:'December'},
   {m:1, name:'January'}, {m:2, name:'February'}, {m:3, name:'March'},
@@ -899,7 +906,13 @@ const FY_2025_26_MONTHS = [
 function initFYDropdown() {
   const fySel = document.getElementById('p_fy');
   if (!fySel) return;
-  fySel.innerHTML = '<option value="2025">FY 2025-26</option>';
+  fySel.innerHTML = '';
+  FY_OPTIONS.forEach(fy => {
+    const opt = document.createElement('option');
+    opt.value = fy.startYear;
+    opt.textContent = fy.label;
+    fySel.appendChild(opt);
+  });
   fySel.value = '2025';
   initMonthDropdownForFY('2025');
 }
@@ -912,14 +925,14 @@ function initMonthDropdownForFY(fyStart) {
   mSel.innerHTML = '';
   ySel.innerHTML = '';
   
-  FY_2025_26_MONTHS.forEach(item => {
+  FY_MONTHS.forEach(item => {
     const opt = document.createElement('option');
     opt.value = item.m;
     opt.textContent = item.name;
     mSel.appendChild(opt);
   });
   
-  // Year dropdown - just show FY year range
+  // Year dropdown - show both years of the FY
   const startYear = parseInt(fyStart);
   const endYear = startYear + 1;
   for (let yr = startYear; yr <= endYear; yr++) {
