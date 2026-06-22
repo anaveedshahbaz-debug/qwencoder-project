@@ -1,3 +1,9 @@
 ```
+# Logs
 *.log
+
+# Environment
+.env
+.env.local
+*.env.*
 ```

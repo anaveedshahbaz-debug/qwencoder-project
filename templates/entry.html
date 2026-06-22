@@ -467,8 +467,8 @@
 <script>
 const d = new Date();
 let selBillingId=null, selReceiptId=null, selExpenseId=null;
-// Reference to global _allProjects from app.js - will be populated after appReady
-let _allProjects = window._allProjects || [];
+// Reference to global _allProjects from app.js - will be set after appReady
+let _allProjects = [];
 
 function switchEntryTab(btn, tabId) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
