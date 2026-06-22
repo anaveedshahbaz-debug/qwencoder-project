@@ -245,6 +245,11 @@ def init_db():
             ("it_deducted","REAL DEFAULT 0"), ("other_ded","REAL DEFAULT 0"),
             ("sales_received","REAL DEFAULT 0"), ("sales_tax_submitted","REAL DEFAULT 0"),
             ("amount_received","REAL DEFAULT 0"), ("cheque_attachment","TEXT"),
+            # Table 2 formula fields
+            ("t2_invoice_amt","REAL DEFAULT 0"),
+            ("t2_it_formula","TEXT"), ("t2_pra_formula","TEXT"), ("t2_oadj_formula","TEXT"),
+            ("t2_sded_formula","TEXT"), ("t2_srcv_formula","TEXT"), ("t2_estd_formula","TEXT"), ("t2_oded_formula","TEXT"),
+            ("t2_remarks","TEXT"),
         ]:
             try: c.execute(f"ALTER TABLE performa_lines ADD COLUMN {col} {defn}")
             except: pass
@@ -1508,6 +1513,7 @@ def api_performa_detail(perf_id):
     lines = query("""SELECT pl.*, pr.job_no, pr.sheet_ref, pr.project_name, pr.project_manager
                       FROM performa_lines pl JOIN projects pr ON pr.id = pl.project_id
                       WHERE pl.performa_id=? ORDER BY pl.id""", (perf_id,))
+    # Ensure all Table 2 fields are included
     return jsonify({"performa": dict(p), "lines": [dict(l) for l in lines]})
 
 @app.route("/api/performa", methods=["POST"])
@@ -1601,13 +1607,17 @@ def api_performa_create():
              invoice_amount, invoice_tax, invoice_gross,
              pst_rate, pst_amount, it_amount, other_amount, cheque_share,
              st_received, st_deducted, extra_st_deducted,
-             client_name, client_ntn, remarks, receipt_txn_id)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+             client_name, client_ntn, remarks, receipt_txn_id,
+             t2_invoice_amt, t2_it_formula, t2_pra_formula, t2_oadj_formula,
+             t2_sded_formula, t2_srcv_formula, t2_estd_formula, t2_oded_formula, t2_remarks)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (perf_id, pid, inv_txn_id, l.get("invoice_no"), l.get("invoice_date"),
              float(l.get("invoice_amount") or 0), float(l.get("invoice_tax") or 0), float(l.get("invoice_gross") or 0),
              pst_rate, pst_amt, it_a, oth_a, cheque_share,
              st_r, st_d, est_d,
-             l.get("client_name"), l.get("client_ntn"), l.get("remarks"), receipt_txn_id))
+             l.get("client_name"), l.get("client_ntn"), l.get("remarks"), receipt_txn_id,
+             float(l.get("t2_invoice_amt") or 0), l.get("t2_it_formula"), l.get("t2_pra_formula"), l.get("t2_oadj_formula"),
+             l.get("t2_sded_formula"), l.get("t2_srcv_formula"), l.get("t2_estd_formula"), l.get("t2_oded_formula"), l.get("t2_remarks")))
 
         rebuild_snapshot(pid, month, year)
 
