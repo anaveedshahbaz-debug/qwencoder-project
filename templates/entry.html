@@ -1897,7 +1897,18 @@ async function deletePerforma(id) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  await window.appReady;
+  // Wait for appReady if it exists and isn't resolved yet
+  if (window.appReady) {
+    try {
+      await Promise.race([
+        window.appReady,
+        new Promise(resolve => setTimeout(resolve, 2000))
+      ]);
+    } catch(e) {
+      console.warn('appReady timeout, continuing anyway');
+    }
+  }
+  
   // Sync local _allProjects reference with the global one from app.js
   _allProjects = window._allProjects || [];
   
