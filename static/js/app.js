@@ -1,9 +1,11 @@
 // ── GLOBALS ───────────────────────────────────────────────────────────────────
 let META = {};
+window.META = META;
 
 async function loadMeta() {
   const r = await fetch('/api/meta');
   META = await r.json();
+  window.META = META;
 }
 
 // ── HTTP HELPERS ──────────────────────────────────────────────────────────────
