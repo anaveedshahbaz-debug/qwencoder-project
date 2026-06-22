@@ -915,6 +915,8 @@ function initFYDropdown() {
   });
   fySel.value = '2025';
   initMonthDropdownForFY('2025');
+  // Trigger change event to load cheques
+  setTimeout(() => fySel.dispatchEvent(new Event('change')), 100);
 }
 
 function initMonthDropdownForFY(fyStart) {
@@ -1030,46 +1032,69 @@ async function addJobToPerforma() {
   }
 
   const projInfo = _allProjects.find(p => p.id == pid);
+  
+  // Filter out invoices already added
+  const availableInvoices = pending.filter(inv => !performaLines.find(l => l.invoice_txn_id === inv.id));
+  if (availableInvoices.length === 0) {
+    toast('All invoices for this job are already added.', 'info');
+    return;
+  }
 
-  pending.forEach(inv => {
-    // skip if already added to current working list
-    if (performaLines.find(l => l.invoice_txn_id === inv.id)) return;
-    performaLines.push({
-      project_id: pid,
-      job_no: projInfo?.job_no || '',
-      project_name: projInfo?.project_name || '',
-      invoice_txn_id: inv.id,
-      invoice_no: inv.invoice_no,
-      invoice_date: inv.invoice_date,
-      invoice_amount: inv.amount,
-      invoice_tax: inv.tax_amount,
-      invoice_gross: inv.gross_amount,
-      balance: inv.balance,
-      pst_rate: 0, pst_amount: 0,
-      it_amount: 0, pra_amount: 0, other_adj: 0, other_non_adj: 0,
-      cheque_share: 0,
-      st_received: 0, st_deducted: 0, extra_st_deducted: 0,
-      client_name: projInfo?.client_name || '',
-      client_ntn: '',
-      remarks: '',
-      // Table 2 specific fields
-      t2_invoice_amt: '',
-      t2_it_formula: '',
-      t2_pra_formula: '',
-      t2_oadj_formula: '',
-      t2_sded_formula: '',
-      t2_srcv_formula: '',
-      t2_estd_formula: '',
-      t2_oded_formula: '',
-      t2_remarks: '',
-    });
+  // Show invoice selection dialog
+  const invoiceSelectHtml = `
+    <div style="margin-bottom:12px">
+      <label class="form-label">Select Invoice:</label>
+      <select id="invoiceSelectDialog" class="form-control" style="width:100%">
+        ${availableInvoices.map(inv => `
+          <option value="${inv.id}">${inv.invoice_no} - Rs.${fmt(inv.gross_amount)} (Balance: Rs.${fmt(inv.balance)})</option>
+        `).join('')}
+      </select>
+    </div>
+  `;
+  
+  if (!await showDialog('Select Invoice', invoiceSelectHtml, ['Cancel', 'Add'])) {
+    return;
+  }
+  
+  const selectedInvId = document.getElementById('invoiceSelectDialog').value;
+  const selectedInv = availableInvoices.find(inv => inv.id == selectedInvId);
+  if (!selectedInv) return;
+
+  performaLines.push({
+    project_id: pid,
+    job_no: projInfo?.job_no || '',
+    project_name: projInfo?.project_name || '',
+    invoice_txn_id: selectedInv.id,
+    invoice_no: selectedInv.invoice_no,
+    invoice_date: selectedInv.invoice_date,
+    invoice_amount: selectedInv.amount,
+    invoice_tax: selectedInv.tax_amount,
+    invoice_gross: selectedInv.gross_amount,
+    balance: selectedInv.balance,
+    pst_rate: 0, pst_amount: 0,
+    it_amount: 0, pra_amount: 0, other_adj: 0, other_non_adj: 0,
+    cheque_share: 0,
+    st_received: 0, st_deducted: 0, extra_st_deducted: 0,
+    client_name: projInfo?.client_name || '',
+    client_ntn: '',
+    remarks: '',
+    // Table 2 specific fields
+    t2_invoice_amt: '',
+    t2_it_formula: '',
+    t2_pra_formula: '',
+    t2_oadj_formula: '',
+    t2_sded_formula: '',
+    t2_srcv_formula: '',
+    t2_estd_formula: '',
+    t2_oded_formula: '',
+    t2_remarks: '',
   });
 
   document.getElementById('p_projSearch').value = '';
   document.getElementById('p_projId').value = '';
-  renderPerformaLines();
   renderTable1();
   renderTable2();
+  toast('Invoice added successfully', 'success');
 }
 
 function renderPerformaLines() {

@@ -305,6 +305,48 @@ function confirmDialog(msg) {
   });
 }
 
+// ── SHOW DIALOG WITH CUSTOM CONTENT ──────────────────────────────────────────
+async function showDialog(title, contentHtml, buttons = ['Cancel', 'OK']) {
+  return new Promise(resolve => {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = 'background:white;padding:24px;border-radius:8px;max-width:500px;width:90%;box-shadow:0 4px 6px rgba(0,0,0,0.1);';
+    
+    const modalTitle = document.createElement('h3');
+    modalTitle.textContent = title;
+    modalTitle.style.cssText = 'margin:0 0 16px 0;color:#1e293b;font-size:18px;';
+    
+    const modalBody = document.createElement('div');
+    modalBody.innerHTML = contentHtml;
+    modalBody.style.cssText = 'margin-bottom:20px;';
+    
+    const modalButtons = document.createElement('div');
+    modalButtons.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;';
+    
+    buttons.forEach((btnText, idx) => {
+      const btn = document.createElement('button');
+      btn.textContent = btnText;
+      btn.style.cssText = idx === buttons.length - 1 
+        ? 'padding:8px 16px;background:#1565C0;color:white;border:none;border-radius:4px;cursor:pointer;'
+        : 'padding:8px 16px;background:#e2e8f0;color:#334155;border:none;border-radius:4px;cursor:pointer;';
+      btn.onclick = () => {
+        document.body.removeChild(modal);
+        resolve(idx === buttons.length - 1); // Resolve true only for last button (OK/Add/Save)
+      };
+      modalButtons.appendChild(btn);
+    });
+    
+    modalContent.appendChild(modalTitle);
+    modalContent.appendChild(modalBody);
+    modalContent.appendChild(modalButtons);
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+  });
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
 // appReady resolves once META and project list are loaded. Every page's own
 // DOMContentLoaded handler should `await appReady` before calling
