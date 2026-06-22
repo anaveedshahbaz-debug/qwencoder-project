@@ -2,6 +2,17 @@
 {% block title %}Data Entry{% endblock %}
 {% block content %}
 
+<script>
+// Define switchEntryTab EARLY so onclick handlers can find it
+function switchEntryTab(btn, tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+window.switchEntryTab = switchEntryTab;
+</script>
+
 <div class="tabs" id="entryTabs">
   <button class="tab-btn active" data-tab="tabBilling"  onclick="switchEntryTab(this,'tabBilling')">💰 Invoice (Billing)</button>
   <button class="tab-btn"        data-tab="tabReceipt"  onclick="switchEntryTab(this,'tabReceipt')">🏦 Receipt</button>
@@ -469,14 +480,6 @@ const d = new Date();
 let selBillingId=null, selReceiptId=null, selExpenseId=null;
 // Reference to global _allProjects from app.js - will be set after appReady
 let _allProjects = [];
-
-function switchEntryTab(btn, tabId) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById(tabId).classList.add('active');
-}
-window.switchEntryTab = switchEntryTab;
 
 // ── BILLING ──────────────────────────────────────────────────────────────────
 function calcBillingTax() {
