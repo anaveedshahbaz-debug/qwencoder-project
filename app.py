@@ -1,20 +1,31 @@
 """
-NESPAK Project Monitoring System — Web Application
-Run: python app.py
-Open: http://localhost:5000
+NESPAK Project Monitoring System — Desktop & Web Application
+Run: python app.py  (for web mode)
+     python desktop_app.py  (for desktop mode)
+Open browser to: http://localhost:5000
 """
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file
-import sqlite3, os, json, shutil
+import sqlite3, os, json, shutil, sys
 from datetime import date, datetime
 from functools import wraps
 
-app = Flask(__name__)
+# Get the base directory (works for both dev and pyinstaller)
+if getattr(sys, 'frozen', False):
+    BASE_DIR = sys._MEIPASS
+    RUNNING_AS_EXE = True
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__)) if '__file__' in dir() else os.getcwd()
+    RUNNING_AS_EXE = False
+
+app = Flask(__name__, 
+            template_folder=os.path.join(BASE_DIR, 'templates'),
+            static_folder=os.path.join(BASE_DIR, 'static'))
 app.secret_key = "nespak_pms_secret_2025"
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
-DB_FILE       = "nespak_pms.db"
-UPLOAD_FOLDER = "static/uploads"
-EXPORT_FOLDER = "exports"
+DB_FILE       = os.path.join(BASE_DIR, "nespak_pms.db")
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "static/uploads")
+EXPORT_FOLDER = os.path.join(BASE_DIR, "exports")
 ADMIN_PASSWORD = "admin123"
 GUEST_PASSWORD = "guest123"
 
@@ -2080,11 +2091,62 @@ def api_settings():
     rows=query("SELECT * FROM settings")
     return jsonify({r["key"]:r["value"] for r in rows})
 
+# ── ERROR HANDLING ────────────────────────────────────────────────────────────
+@app.errorhandler(Exception)
+def handle_exception(error):
+    """Global error handler that returns JSON for API calls and HTML for pages"""
+    import traceback
+    error_msg = str(error)
+    traceback_str = traceback.format_exc()
+    
+    # Log the error
+    print(f"ERROR: {error_msg}")
+    print(traceback_str)
+    
+    if request.path.startswith('/api/') or request.is_json:
+        return jsonify({
+            "error": error_msg,
+            "type": type(error).__name__,
+            "message": f"An error occurred: {error_msg}. Please check the logs or contact support."
+        }), 500
+    
+    # For page requests, show error page
+    return render_template_string("""
+    <!DOCTYPE html>
+    <html><head><title>Error - NESPAK PMS</title>
+    <style>
+        body{font-family:Arial,sans-serif;max-width:900px;margin:40px auto;padding:20px;background:#f5f5f5}
+        .error-box{background:#fff;border-left:4px solid #ef4444;padding:20px;margin:20px 0;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.1)}
+        h1{color:#ef4444;margin-top:0}
+        .error-msg{background:#fef2f2;padding:15px;border-radius:4px;margin:15px 0}
+        .traceback{background:#1e293b;color:#e2e8f0;padding:15px;border-radius:4px;overflow-x:auto;font-family:monospace;font-size:12px;white-space:pre-wrap}
+        .btn{display:inline-block;padding:10px 20px;background:#3b82f6;color:#fff;text-decoration:none;border-radius:4px;margin-top:10px}
+        .btn:hover{background:#2563eb}
+    </style></head><body>
+    <div class="error-box">
+        <h1>⚠️ Application Error</h1>
+        <div class="error-msg">
+            <strong>Error:</strong> {{ error_msg }}
+        </div>
+        <p>An unexpected error occurred while processing your request.</p>
+        <details>
+            <summary style="cursor:pointer;color:#64748b;margin:15px 0">Show Technical Details (for support)</summary>
+            <div class="traceback">{{ traceback }}</div>
+        </details>
+        <a href="/" class="btn">🏠 Go to Dashboard</a>
+        <a href="javascript:location.reload()" class="btn" style="background:#10b981;margin-left:10px">🔄 Retry</a>
+    </div>
+    </body></html>
+    """, error_msg=error_msg, traceback=traceback_str), 500
+
 if __name__ == "__main__":
     init_db()
     import socket
     hostname = socket.gethostname()
-    local_ip = socket.gethostbyname(hostname)
+    try:
+        local_ip = socket.gethostbyname(hostname)
+    except:
+        local_ip = "127.0.0.1"
     print("\n" + "="*60)
     print("NESPAK Project Monitoring System")
     print("="*60)
